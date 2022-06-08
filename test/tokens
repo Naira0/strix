@@ -1,0 +1,6 @@
+
+var x = 1, y = 2, z
+
+z = 3
+
+print f"{if x == 1 do "one" else "idk"} {y} {z}"
