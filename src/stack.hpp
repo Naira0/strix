@@ -5,6 +5,8 @@
 template<class T>
 class Stack
 {
+public:
+
     struct Node
     {
         T     data;
@@ -12,27 +14,23 @@ class Stack
         Node *next;
     };
 
-public:
     Stack() :
         m_head(nullptr),
         m_tail(nullptr),
         m_size(0)
     {}
 
-//    ~Stack()
-//    {
-//        if(m_size == 0)
-//            return;
-//
-//        Node *node = m_head;
-//
-//        while(node)
-//        {
-//            Node *next = node->next;
-//            delete node;
-//            node = next;
-//        }
-//    }
+    ~Stack()
+    {
+        Node *node = m_tail;
+
+        while(node)
+        {
+            Node *last = node->last;
+            delete node;
+            node = last;
+        }
+    }
 
     template<typename ...V>
     inline void emplace(V &&...item)
@@ -104,6 +102,11 @@ public:
     top_two() const
     {
         return {m_tail->last->data, m_tail->data};
+    }
+
+    inline Node* tail_node() const
+    {
+        return const_cast<Node*>(m_tail);
     }
 
 private:

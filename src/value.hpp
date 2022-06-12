@@ -9,7 +9,7 @@
 
 enum class ValueType : uint8_t
 {
-    Number, Bool, Nil, Object
+    Number, Bool, Nil, Object, Address
 };
 
 // can reduce struct size by 8 bytes
@@ -26,6 +26,7 @@ struct Value
         bool boolean;
         std::nullptr_t nil;
         Object *object;
+        uint16_t address; // address for the vms memory
     } as{};
 
     Value() :
@@ -36,6 +37,11 @@ struct Value
     explicit Value(double value) :
         type(ValueType::Number),
         as{.number = value}
+    {}
+
+    explicit Value(uint16_t value) :
+        type(ValueType::Address),
+        as{.address = value}
     {}
 
     explicit Value(bool value) :
@@ -89,59 +95,35 @@ struct Value
         return static_cast<T*>(as.object);
     }
 
-    inline std::string to_string() const
-    {
-        using enum ValueType;
+    std::string to_string() const;
 
-        switch(type)
-        {
-            case Number: return number_str(as.number);
-            case Bool:   return as.boolean ? "true" : "false";
-            case Nil:    return "nil";
-            case Object: return as.object->to_string();
-            default:     return "unknown type";
-        }
-    }
 
-    friend bool operator==(const Value &a, const Value &b)
-    {
-        if(a.type != b.type)
-            return false;
+    friend Value operator+(const Value &a, const Value &b);
 
-        switch(a.type)
-        {
-            case ValueType::Nil:    return true;
-            case ValueType::Bool:   return a.as.boolean == b.as.boolean;
-            case ValueType::Number: return a.as.number  == b.as.number;
-            case ValueType::Object: return a.as.object->compare(b.as.object);
-            default: return false;
-        }
-    }
+    friend Value operator-(const Value &a, const Value &b);
+
+    friend Value& operator+=(Value &a, const Value &b);
+
+    friend Value& operator-=(Value &a, const Value &b);
+
+    friend Value& operator*=(Value &a, const Value &b);
+
+    friend Value& operator/=(Value &a, const Value &b);
+
+    friend Value operator/(const Value &a, const Value &b);
+
+    friend Value operator*(const Value &a, const Value &b);
+
+    friend bool operator>(const Value &a, const Value &b);
+
+    friend bool operator<(const Value &a, const Value &b);
+
+    friend bool operator==(const Value &a, const Value &b);
 
 private:
+    void move_from(Value &&value);
+    void copy_from(const Value &value);
 
-    void move_from(Value &&value)
-    {
-        type = value.type;
-
-        if(type == ValueType::Object)
-        {
-            as.object = value.as.object;
-            value.as.object = nullptr;
-        }
-        else
-            as = value.as;
-    }
-
-    void copy_from(const Value &value)
-    {
-        type = value.type;
-
-        if(type == ValueType::Object)
-            as.object = value.as.object->clone();
-        else
-            as = value.as;
-    }
 };
 
 #pragma pack(pop)

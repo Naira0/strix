@@ -85,12 +85,12 @@ inline Compiler::ParseRule Compiler::get_rule(TokenType kind) const
 template<typename ...A>
 inline void Compiler::emit_bytes(A ...a)
 {
-    (m_current_chunk.bytes.emplace_back(a, m_current_token.line), ...);
+    (m_chunk.bytes.emplace_back(a, m_current_token.line), ...);
 }
 
 size_t Compiler::emit_jmp(OpCode instruction)
 {
-    auto &chunk = m_current_chunk;
+    auto &chunk = m_chunk;
 
     chunk.set(instruction, Value(0.0), m_previous_token.line);
 
@@ -99,8 +99,8 @@ size_t Compiler::emit_jmp(OpCode instruction)
 
 void Compiler::patch_jmp(size_t offset)
 {
-    auto &bytes = m_current_chunk.bytes;
-    auto &value = m_current_chunk.constants[bytes[offset].constant];
+    auto &bytes = m_chunk.bytes;
+    auto &value = m_chunk.constants[bytes[offset].constant];
 
     double jmp = bytes.size() - offset - 1;
 
@@ -109,8 +109,8 @@ void Compiler::patch_jmp(size_t offset)
 
 void Compiler::emit_rollback(size_t start)
 {
-    double amount = m_current_chunk.bytes.size() - start - 1;
-    m_current_chunk.set(OpCode::RollBack, Value(amount), m_current_token.line);
+    double amount = m_chunk.bytes.size() - start - 1;
+    m_chunk.set(OpCode::RollBack, Value(amount), m_current_token.line);
 }
 
 inline void Compiler::number()
@@ -154,7 +154,7 @@ void Compiler::fstring()
 
 inline void Compiler::emit_constant(Value &&value)
 {
-    m_current_chunk.set_constant(std::forward<Value>(value), m_current_token.line);
+    m_chunk.set_constant(std::forward<Value>(value), m_current_token.line);
 }
 
 inline void Compiler::grouping()
@@ -181,6 +181,7 @@ inline void Compiler::binary()
         case TokenType::Plus:         return emit_bytes(OpCode::Add);
         case TokenType::Minus:        return emit_bytes(OpCode::Subtract);
         case TokenType::Star:         return emit_bytes(OpCode::Multiply);
+        case TokenType::Caret:        return emit_bytes(OpCode::Power);
         case TokenType::Percent:      return emit_bytes(OpCode::Mod);
         case TokenType::Slash:        return emit_bytes(OpCode::Divide);
         case TokenType::Or:           return emit_bytes(OpCode::Or);
@@ -218,27 +219,78 @@ void Compiler::variable()
 {
     std::string_view identifier = m_previous_token.lexeme;
 
-    int scope_depth = resolve_scope();
+    int scope_depth = resolve_var();
 
     if(scope_depth == -1)
         return error("use of undeclared variable");
 
     Variable var = m_variables[scope_depth][identifier];
 
-    Token previous = m_previous_token;
+    Token previous_token = m_previous_token;
 
-    emit_constant(Value((double)var.index));
+    OpCode op;
+    OpCode extra = OpCode::NoOp;
 
-    if(m_can_assign && match(TokenType::Equal))
+    // will be set to false if it was a get op otherwise it will be true and will throw an error if the var is immutable
+    bool assigned = true;
+    // will determine if it the variable should be pushed on to the stack at the end of the function
+    bool get_mem = true;
+
+    using enum class TokenType;
+
+    if(m_can_assign && match(Equal))
     {
-        if(!var.is_mutable)
-            return error_at(previous, "constant variable cannot be reassigned");
-
         expression();
-        emit_bytes(var.depth == 0 ? OpCode::SetStatic : OpCode::SetVar);
+        op = OpCode::SetMem;
+    }
+    else if(m_current_token.type > Star && m_current_token.type < Caret)
+    {
+        op = OpCode::LoadAddr;
+        extra = mod_assignable(var, get_mem);
     }
     else
-        emit_bytes(var.depth == 0 ? OpCode::GetStatic : OpCode::GetVar);
+    {
+        assigned = false;
+        get_mem  = false;
+        op = OpCode::GetMem;
+    }
+
+    if(!var.is_mutable && assigned)
+        return error_at(previous_token, "constant variable cannot be reassigned");
+
+    m_chunk.set(op, Value(var.index), previous_token.line);
+
+    if(extra != OpCode::NoOp)
+        emit_bytes(extra);
+    if(get_mem)
+        m_chunk.set(OpCode::GetMem, Value(var.index), previous_token.line);
+}
+
+OpCode Compiler::mod_assignable(Variable var, bool &get_mem)
+{
+    using enum class TokenType;
+
+    OpCode op = OpCode::NoOp;
+
+    if(match(PlusEqual))
+        op = OpCode::Add;
+    else if(match(MinusEqual))
+        op = OpCode::Subtract;
+    else if(match(SlashEqual))
+        op = OpCode::Divide;
+    else if(match(StarEqual))
+        op = OpCode::Multiply;
+
+    if(match(PlusPlus) || match(MinusMinus))
+    {
+        op = m_previous_token.type == PlusPlus ? OpCode::Increment : OpCode::Decrement;
+        get_mem = false;
+        m_chunk.set(OpCode::GetMem, Value(var.index), m_previous_token.line);
+    }
+    else
+        expression();
+
+    return op;
 }
 
 inline void Compiler::begin_scope()
@@ -253,7 +305,7 @@ void Compiler::end_scope()
         return;
 
     m_scope_depth--;
-    m_var_index -= m_variables[m_scope_depth].size();
+    m_data_index -= m_variables[m_scope_depth].size();
     m_variables.pop_back();
 }
 
@@ -326,7 +378,7 @@ void Compiler::if_expr()
 
 void Compiler::while_stmt()
 {
-    size_t start = m_current_chunk.bytes.size()-2;
+    size_t start = m_chunk.bytes.size() - 2;
 
     expression();
 
@@ -353,7 +405,7 @@ void Compiler::declaration()
 void Compiler::var_declaration()
 {
     bool is_const = m_previous_token.type == TokenType::Const;
-    int index = m_scope_depth == 0 ? m_static_index++ : m_var_index;
+    uint16_t index = m_data_index++;
 
     Variable var
     {
@@ -362,9 +414,7 @@ void Compiler::var_declaration()
         .index      = index,
     };
 
-    emit_constant(Value((double)index));
-
-    parse_variable(var);
+    set_var(var);
 
     if(match(TokenType::Equal))
         expression();
@@ -376,13 +426,15 @@ void Compiler::var_declaration()
         emit_bytes(OpCode::Nil);
     }
 
-    emit_bytes(m_scope_depth == 0 ? OpCode::SetStatic : OpCode::SetVar);
+    OpCode set_op = OpCode::SetMem;
+
+    m_chunk.set(set_op, Value(index), m_previous_token.line);
 
     if(match(TokenType::Comma))
         var_declaration();
 }
 
-int Compiler::resolve_scope()
+int Compiler::resolve_var()
 {
     std::string_view identifier = m_previous_token.lexeme;
 
@@ -395,7 +447,7 @@ int Compiler::resolve_scope()
     return -1;
 }
 
-void Compiler::parse_variable(Variable var)
+void Compiler::set_var(Variable var)
 {
     consume(TokenType::Identifier, "expected identifier");
 
@@ -404,7 +456,7 @@ void Compiler::parse_variable(Variable var)
     VarTable &vars = m_variables[m_scope_depth];
 
     if(vars.contains(var_name))
-        return error("variable is already defined at this scope");
+        return error("variable is already defined in this scope");
 
     vars.emplace(var_name, var);
 }
@@ -495,6 +547,13 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {nullptr,     nullptr,   Precedence::None}, // semicolon
         {nullptr, &Compiler::binary,   Precedence::Factor}, // slash
         {nullptr, &Compiler::binary,   Precedence::Factor}, // star
+        {nullptr, nullptr, Precedence::None}, // plus equal
+        {nullptr, nullptr, Precedence::None}, // minus equal
+        {nullptr, nullptr, Precedence::None}, // star equal
+        {nullptr, nullptr, Precedence::None}, // slash equal
+        {nullptr, nullptr, Precedence::None}, // plus plus
+        {nullptr, nullptr, Precedence::None}, // minus minus
+        {nullptr, &Compiler::binary, Precedence::Primary}, // caret
         {nullptr, &Compiler::binary,   Precedence::Factor}, // percent
         {&Compiler::unary,     nullptr,   Precedence::None}, // bang
         {nullptr, &Compiler::binary,   Precedence::Equality}, // bangequal
@@ -530,6 +589,8 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {nullptr,     nullptr,   Precedence::None}, // error
         {nullptr,     nullptr,   Precedence::None}, // eof
 };
+
+
 
 
 

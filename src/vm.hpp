@@ -11,7 +11,6 @@
 #define DEBUG_TRACE false
 
 constexpr uint16_t MaxDataSize = sizeof(Value) * 1000;
-constexpr uint16_t MaxStaticsSize = sizeof(Value) * 2000;
 
 enum class InterpretResult
 {
@@ -33,8 +32,7 @@ private:
 
     Stack<Value> m_stack;
 
-    std::array<Value, MaxDataSize> m_variables{};
-    std::array<Value, MaxStaticsSize> m_statics{};
+    std::array<Value, MaxDataSize> m_data;
 
     InterpretResult m_state = InterpretResult::Ok;
 
@@ -47,5 +45,13 @@ private:
     void concat_str();
 
     bool same_operands(ValueType type) const;
+
+    bool same_operands() const;
+
+    bool match_last(ValueType type) const;
+
+    bool match(ValueType type) const;
+
+    Value& from_addr(Bytes instruction);
 };
 

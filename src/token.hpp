@@ -18,6 +18,13 @@
     e(SemiColon)             \
     e(Slash)                 \
     e(Star)                  \
+    e(PlusEqual)             \
+    e(MinusEqual)            \
+    e(StarEqual)             \
+    e(SlashEqual)            \
+    e(PlusPlus)              \
+    e(MinusMinus)            \
+    e(Caret)                 \
     e(Percent)               \
     e(Bang)                  \
     e(BangEqual)             \

@@ -7,18 +7,28 @@
 #include "fmt.hpp"
 #include "debug.hpp"
 
-#define BINARY_OP(op)               \
+#define BINARY_OP(op, type)               \
     do                              \
     {                               \
-          if(!same_operands(ValueType::Number)) \
+          if(!same_operands(type)) \
           {                   \
-                runtime_error("operands to binary expression must be numbers"); \
+                runtime_error("invalid operands provided to binary expression"); \
                 break;\
           }\
           Value b = m_stack.pop();  \
           Value a = m_stack.pop();  \
                    \
-          m_stack.emplace(a.as.number op b.as.number);  \
+          m_stack.emplace(a op b);  \
+    } while(false)
+
+#define BINARY_OP_MOD(op) \
+    do                              \
+    {                     \
+          uint16_t addr = m_stack.pop().as.address; \
+          Value &mem = m_data[addr];           \
+          Value value = m_stack.pop();              \
+                          \
+          mem op value;\
     } while(false)
 
 
@@ -61,21 +71,41 @@ InterpretResult VM::run()
                 break;
             }
 
+            // TODO: implement the rest of the op= operators
             case Add:
             {
-                if(same_operands(ValueType::Object))
-                    concat_str();
-                else if(same_operands(ValueType::Number))
-                    BINARY_OP(+);
+                if(match(ValueType::Address))
+                    BINARY_OP_MOD(+=);
                 else
-                    runtime_error("invalid operands provided to binary expression");
+                    BINARY_OP(+, ValueType::Number);
                 break;
             }
-            case Subtract: BINARY_OP(-); break;
-            case Multiply: BINARY_OP(*); break;
-            case Divide:   BINARY_OP(/); break;
-            case Greater:  BINARY_OP(>); break;
-            case Less:     BINARY_OP(<); break;
+            case Subtract:
+            {
+                if(match(ValueType::Address))
+                    BINARY_OP_MOD(-=);
+                else
+                    BINARY_OP(-, ValueType::Number);
+                break;
+            }
+            case Multiply:
+            {
+                if(match(ValueType::Address))
+                    BINARY_OP_MOD(*=);
+                else
+                    BINARY_OP(*, ValueType::Number);
+                break;
+            }
+            case Divide:
+            {
+                if(match(ValueType::Address))
+                    BINARY_OP_MOD(/=);
+                else
+                    BINARY_OP(/, ValueType::Number);
+                break;
+            }
+            case Greater:  BINARY_OP(>, ValueType::Number); break;
+            case Less:     BINARY_OP(<, ValueType::Number); break;
 
             case Mod:
             {
@@ -89,6 +119,22 @@ InterpretResult VM::run()
                 Value a = m_stack.pop();
 
                 m_stack.emplace(std::fmod(a.as.number, b.as.number));
+
+                break;
+            }
+
+            case Power:
+            {
+                if(!same_operands(ValueType::Number))
+                {
+                    runtime_error("operands to binary expression must be numbers");
+                    break;
+                }
+
+                Value b = m_stack.pop();
+                Value a = m_stack.pop();
+
+                m_stack.emplace(std::pow(a.as.number, b.as.number));
 
                 break;
             }
@@ -124,6 +170,20 @@ InterpretResult VM::run()
                 break;
             }
 
+            case Increment:
+            {
+                Value &value = m_data[m_stack.pop().as.address];
+                value.as.number++;
+                break;
+            }
+            // TODO: implement in compiler
+            case Decrement:
+            {
+                Value &value = m_data[m_stack.pop().as.address];
+                value.as.number--;
+                break;
+            }
+
             case And:
             {
                 Value b = m_stack.pop();
@@ -144,41 +204,30 @@ InterpretResult VM::run()
                 break;
             }
 
-            case SetVar:
+            case SetMem:
             {
                 Value value = m_stack.pop();
-                int index = m_stack.pop().as.number;
+                uint16_t index = m_chunk.constants[instruction.constant].as.address;
 
-                m_variables[index] = std::move(value);
+                m_data[index] = std::move(value);
 
                 break;
             }
-            case GetVar:
+            case GetMem:
             {
-                int index = m_stack.pop().as.number;
+                uint16_t index = m_chunk.constants[instruction.constant].as.address;
 
-                Value &value = m_variables[index];
+                Value &value = m_data[index];
 
                 m_stack.push(value);
 
                 break;
             }
-            case SetStatic:
+            case LoadAddr:
             {
-                Value value = m_stack.pop();
-                int index = m_stack.pop().as.number;
+                Value &index = m_chunk.constants[instruction.constant];
 
-                m_statics[index] = std::move(value);
-
-                break;
-            }
-            case GetStatic:
-            {
-                int index = m_stack.pop().as.number;
-
-                Value &value = m_statics[index];
-
-                m_stack.push(value);
+                m_stack.push(index);
 
                 break;
             }
@@ -187,7 +236,7 @@ InterpretResult VM::run()
             {
                 Value value = m_stack.pop();
 
-                m_stack.push(new String(value.to_string()));
+                m_stack.emplace(new String(value.to_string()));
 
                 break;
             }
@@ -222,8 +271,7 @@ InterpretResult VM::run()
 
             case Return:
             {
-                //fmt::print("{} items on the stack", m_stack.size());
-                return InterpretResult::Ok;
+                return m_state;
             }
         }
     }
@@ -275,6 +323,33 @@ inline bool VM::same_operands(ValueType type) const
 {
     auto [a, b] = m_stack.top_two();
     return a.type == type && b.type == type;
+}
+
+bool VM::match_last(ValueType type) const
+{
+    auto last = m_stack.tail_node()->last;
+
+    if(last != nullptr && last->data.type == type)
+        return true;
+
+    return false;
+}
+
+bool VM::match(ValueType type) const
+{
+    return m_stack.top().type == type;
+}
+
+bool VM::same_operands() const
+{
+    auto [a, b] = m_stack.top_two();
+    return a.type == b.type;
+}
+
+Value &VM::from_addr(Bytes instruction)
+{
+    uint16_t addr = m_chunk.constants[instruction.constant].as.address;
+    return m_data[addr];
 }
 
 

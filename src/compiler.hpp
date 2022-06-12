@@ -36,8 +36,8 @@ class Compiler
 public:
     Compiler(std::string_view source, Chunk &chunk)
     :
-        m_scanner(source),
-        m_current_chunk(chunk)
+            m_scanner(source),
+            m_chunk(chunk)
     {}
 
     bool compile();
@@ -48,7 +48,7 @@ private:
     Token m_previous_token;
     Token m_current_token;
 
-    Chunk &m_current_chunk;
+    Chunk &m_chunk;
 
     bool m_had_error = false;
     bool m_panic_mode = false;
@@ -60,7 +60,7 @@ private:
     {
         size_t depth;
         bool is_mutable;
-        int  index;
+        uint16_t index;
     };
 
     using VarTable = std::unordered_map<std::string_view, Variable>;
@@ -69,9 +69,8 @@ private:
     std::vector<VarTable> m_variables { VarTable() };
     size_t m_scope_depth = 0;
 
-    // counters for variable index that mirrors the vms arrays
-    int m_var_index = 0;
-    int m_static_index = 0;
+    // counter for data index that mirrors the vms arrays
+    int m_data_index = 0;
 
     typedef void(Compiler::*ParseFN)();
 
@@ -120,6 +119,8 @@ private:
 
     void variable();
 
+    OpCode mod_assignable(Variable var, bool &get_mem);
+
     void print_stmt();
 
     void begin_scope();
@@ -140,9 +141,9 @@ private:
 
     void var_declaration();
 
-    int resolve_scope();
+    int resolve_var();
 
-    void parse_variable(Variable var);
+    void set_var(Variable var);
 
     void synchronize();
 

@@ -1,5 +1,7 @@
 #include "util.hpp"
 
+#include <iostream>
+
 std::string read_file(const char *path)
 {
     std::fstream file(path, std::fstream::in);
@@ -21,13 +23,13 @@ std::string number_str(double value)
     // this is not efficient but relative to the average string size it does the job ok
     if((int)value == value)
     {
-        str = std::move(str.substr(0, pos));
+        str = str.substr(0, pos);
     }
     else
     {
         bool found = false;
 
-        for(size_t i = str.size()-1; i > pos+1; i--)
+        for(size_t i = str.size()-1; i > pos; i--)
         {
             if(str[i] != '0')
             {
@@ -38,7 +40,7 @@ std::string number_str(double value)
         }
 
         if(found)
-            str = std::move(str.substr(0, pos));
+            str = str.substr(0, pos);
     }
 
     return str;

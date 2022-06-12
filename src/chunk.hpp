@@ -8,10 +8,8 @@
 
 #define FOREACH_OPCODES(e)  \
     e(Constant)             \
-    e(SetVar)               \
-    e(GetVar)               \
-    e(SetStatic)            \
-    e(GetStatic)            \
+    e(SetMem)               \
+    e(GetMem)               \
     e(ToString)             \
     e(True)                 \
     e(False)                \
@@ -24,16 +22,21 @@
     e(Subtract)             \
     e(Multiply)             \
     e(Divide)               \
+    e(Power)                \
     e(Mod)                  \
     e(Not)                  \
     e(Negate)               \
+    e(Increment)            \
+    e(Decrement)            \
     e(Or)                   \
     e(And)                  \
     e(Print)                \
+    e(LoadAddr)             \
     e(Jif)                  \
     e(Jump)                 \
     e(RollBack)             \
     e(Return)               \
+    e(NoOp)                 \
 
 
 enum class OpCode : uint8_t {FOREACH_OPCODES(GENERATE_ENUM)};

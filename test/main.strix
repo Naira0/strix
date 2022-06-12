@@ -1,6 +1,7 @@
 
-var x = 1, y = 2, z
+var i = 0
 
-z = 3
-
-print f"{if x == 1 do "one" else "idk"} {y} {z}"
+while (i += 1) < 10
+{
+    print i
+}

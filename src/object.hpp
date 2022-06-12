@@ -28,7 +28,23 @@ struct Object
 
     virtual ObjectType type() const = 0;
 
-    virtual bool compare(const Object *obj) = 0;
+    virtual bool compare(const Object *obj) { return false; }
+
+    virtual Object* add(const Object *obj) { return nullptr; }
+
+    virtual Object* subtract(const Object *obj) { return nullptr; }
+
+    virtual Object* divide(const Object *obj) { return nullptr; }
+
+    virtual Object* multiply(const Object *obj) { return nullptr; }
+
+    virtual Object* plus_equal(const Object *obj) { return nullptr; }
+
+    virtual Object* minus_equal(const Object *obj) { return nullptr; }
+
+    virtual Object* divide_equal(const Object *obj) { return nullptr; }
+
+    virtual Object* multiply_equal(const Object *obj) { return nullptr; }
 
 private:
     ObjectType m_type;
@@ -119,6 +135,32 @@ struct String : Object
         return s1 == s2;
     }
 
+    Object* add(const Object *obj) override
+    {
+        auto str = dynamic_cast<const String*>(obj);
+
+        auto [buffer, new_len] = copy_tobuffer(str);
+
+        return new String(buffer, new_len);
+    }
+
+    Object* plus_equal(const Object *obj) override
+    {
+        auto str = dynamic_cast<const String*>(obj);
+
+        auto [buffer, new_len] = copy_tobuffer(str);
+
+        if(!is_static)
+            delete[] data;
+
+        data = buffer;
+        length = new_len;
+        // for some reason the destructor shits itself when deleting this fix later for now it leaks memory
+        //is_static = false;
+
+        return this;
+    }
+
     ObjectType type() const override
     {
         return m_type;
@@ -140,16 +182,18 @@ private:
 
     ObjectType m_type = ObjectType::String;
 
-    std::string make_string() const
+    std::pair<char*, size_t> copy_tobuffer(const String *str) const
     {
-        std::string output;
+        size_t new_len = length + str->length;
 
-        output.reserve(length+1);
+        auto buffer = new char[new_len + 2];
 
-        for(int i = 0; i < length; i++)
-            output += data[i];
+        std::memcpy(buffer, data, length);
+        std::memcpy(buffer + length, str->data, str->length);
 
-        return output;
+        buffer[new_len] = '\0';
+
+        return {buffer, new_len};
     }
 };
 

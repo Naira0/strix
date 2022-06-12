@@ -46,12 +46,29 @@ Token Scanner::scan_token()
         case '}':  return  build(RightBrace);
         case ',':  return  build(Comma);
         case '.':  return  build(Dot);
-        case '-':  return  build(Minus);
-        case '+':  return  build(Plus);
+        case '-':
+        {
+            if(match('='))
+                return build(MinusEqual);
+            else if(match('-'))
+                return build(MinusMinus);
+            else
+                return build(Minus);
+        }
+        case '+':
+        {
+            if(match('='))
+                return build(PlusEqual);
+            else if(match('+'))
+                return build(PlusPlus);
+            else
+                return build(Plus);
+        }
+        case '/':  return  build(match('=') ? SlashEqual : Slash);
+        case '*':  return  build(match('=') ? StarEqual : Star);
         case ';':  return  build(SemiColon);
-        case '/':  return  build(Slash);
-        case '*':  return  build(Star);
         case '%':  return  build(Percent);
+        case '^':  return  build(Caret);
 
         case '!': return build(match('=') ? BangEqual : Bang);
         case '=': return build(match('=') ? EqualEqual : Equal);

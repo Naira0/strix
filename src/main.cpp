@@ -10,9 +10,10 @@
 #include "debug.hpp"
 
 /*
- * TODO: add bitwise operators
- * TODO: implement constant folding
- * TODO: add increment and op and eq operators
+ * TODO:
+ * add bitwise operators
+ * implement constant folding
+ * break labels
  */
 
 void print_tokens(char *path)
@@ -85,6 +86,8 @@ void run_file(const char *path)
 
     InterpretResult result = vm.interpret(contents);
 }
+
+using Vvar = std::variant<double, bool, std::nullptr_t, Object*, uint16_t>;
 
 int main(int argc, char **argv)
 {
