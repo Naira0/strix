@@ -120,6 +120,16 @@ struct Value
 
     friend bool operator==(const Value &a, const Value &b);
 
+    friend bool operator>=(const Value &a, const Value &b);
+
+    friend bool operator<=(const Value &a, const Value &b);
+
+    Value power(const Value &b) const;
+
+    Value mod(const Value &b) const;
+
+    bool is_falsy() const;
+
 private:
     void move_from(Value &&value);
     void copy_from(const Value &value);

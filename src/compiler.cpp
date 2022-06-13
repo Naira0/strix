@@ -113,6 +113,44 @@ void Compiler::emit_rollback(size_t start)
     m_chunk.set(OpCode::RollBack, Value(amount), m_current_token.line);
 }
 
+bool Compiler::emit_cache()
+{
+    if(m_cache.items.empty())
+        return false;
+
+    Value value = m_cache.get().value;
+
+    emit_constant(std::move(value));
+
+    return true;
+}
+
+bool Compiler::is_known() const
+{
+    if(m_cache.items.empty())
+        return false;
+    const Cache::Item &item = m_cache.items.back();
+    return is_known(item);
+}
+
+bool Compiler::is_known(const Cache::Item &item) const
+{
+    if(item.type == Cache::Type::Value)
+        return true;
+
+    int depth = resolve_var(item.lexeme);
+
+    if(depth != -1 && m_variables[depth].contains(item.lexeme))
+    {
+        Variable var = m_variables[depth].at(item.lexeme);
+
+        if(var.value_known)
+            return true;
+    }
+
+    return false;
+}
+
 inline void Compiler::number()
 {
     double value;
@@ -121,25 +159,28 @@ inline void Compiler::number()
 
     std::from_chars(lexeme.data(), lexeme.data()+lexeme.size(), value);
 
-    emit_constant(Value(value));
+    m_cache.set(Value(value));
 }
 
 inline void Compiler::string()
 {
     if(String::intern_strings.contains(m_current_token.lexeme))
         return;
-    emit_constant(new String(m_previous_token.lexeme));
+
+    m_cache.set(new String(m_previous_token.lexeme));
 }
 
 void Compiler::fstring()
 {
     m_state = ParseState::FString;
 
-    emit_constant(Value(new String(std::string_view{""})));
+    emit_constant(new String(std::string_view{""}));
 
     while(!check(TokenType::FStringEnd))
     {
         expression();
+
+        emit_cache();
 
         if(m_previous_token.type != TokenType::String)
             emit_bytes(OpCode::ToString);
@@ -170,12 +211,49 @@ inline void Compiler::binary()
 
     parse_precedence((Precedence)((uint8_t)rule.precedence+1));
 
+    auto item2 = m_cache.get();
+    auto item1 = m_cache.get();
+
+    if(is_known(item1) && is_known(item2))
+    {
+        auto b = item2.value;
+        auto a = item1.value;
+
+        try
+        {
+            switch(operator_type)
+            {
+                case TokenType::EqualEqual:   return m_cache.set(Value(a == b));
+                case TokenType::Greater:      return m_cache.set(Value(a > b));
+                case TokenType::GreaterEqual: return m_cache.set(Value(a >= b));
+                case TokenType::Less:         return m_cache.set(Value(a < b));
+                case TokenType::LessEqual:    return m_cache.set(Value(a <= b));
+                case TokenType::Plus:         return m_cache.set(a + b);
+                case TokenType::Minus:        return m_cache.set(a - b);
+                case TokenType::Star:         return m_cache.set(a * b);
+                case TokenType::Caret:        return m_cache.set(a.power(b));
+                case TokenType::Percent:      return m_cache.set(a.mod(b));
+                case TokenType::Slash:        return m_cache.set(a / b);
+                case TokenType::Or:           return m_cache.set(Value(!a.is_falsy() || !b.is_falsy()));
+                case TokenType::And:          return m_cache.set(Value(!a.is_falsy() && !b.is_falsy()));
+                default: return;
+            }
+        }
+        catch(std::exception &e)
+        {
+            return error(e.what());
+        }
+    }
+
+    emit_constant(std::move(item2.value));
+    emit_constant(std::move(item1.value));
+
     switch(operator_type)
     {
         case TokenType::BangEqual:    return emit_bytes(OpCode::Equal, OpCode::Not);
         case TokenType::EqualEqual:   return emit_bytes(OpCode::Equal);
         case TokenType::Greater:      return emit_bytes(OpCode::Greater);
-        case TokenType::GreaterEqual: return emit_bytes(OpCode::Not);
+        case TokenType::GreaterEqual: return emit_bytes(OpCode::Greater, OpCode::Not);
         case TokenType::Less:         return emit_bytes(OpCode::Less);
         case TokenType::LessEqual:    return emit_bytes(OpCode::Greater, OpCode::Not);
         case TokenType::Plus:         return emit_bytes(OpCode::Add);
@@ -188,6 +266,7 @@ inline void Compiler::binary()
         case TokenType::And:          return emit_bytes(OpCode::And);
         default: return;
     }
+
 }
 
 void Compiler::unary()
@@ -195,6 +274,26 @@ void Compiler::unary()
     TokenType operator_type = m_previous_token.type;
 
     parse_precedence(Precedence::Unary);
+
+    if(is_known())
+    {
+        Value value = m_cache.get().value;
+
+        switch(operator_type)
+        {
+            case TokenType::Minus:
+            {
+                if(value.type != ValueType::Number)
+                    return error("negation value must be an integral type");
+
+                value.as.number = -value.as.number;
+
+                return m_cache.set(std::move(value));
+            }
+            case TokenType::Bang: return m_cache.set(Value(value.is_falsy()));
+            default: return;
+        }
+    }
 
     switch(operator_type)
     {
@@ -219,7 +318,7 @@ void Compiler::variable()
 {
     std::string_view identifier = m_previous_token.lexeme;
 
-    int scope_depth = resolve_var();
+    int scope_depth = resolve_var(identifier);
 
     if(scope_depth == -1)
         return error("use of undeclared variable");
@@ -241,6 +340,7 @@ void Compiler::variable()
     if(m_can_assign && match(Equal))
     {
         expression();
+        emit_cache();
         op = OpCode::SetMem;
     }
     else if(m_current_token.type > Star && m_current_token.type < Caret)
@@ -288,7 +388,10 @@ OpCode Compiler::mod_assignable(Variable var, bool &get_mem)
         m_chunk.set(OpCode::GetMem, Value(var.index), m_previous_token.line);
     }
     else
+    {
         expression();
+        emit_cache();
+    }
 
     return op;
 }
@@ -340,6 +443,7 @@ void Compiler::statement()
 void Compiler::if_stmt()
 {
     expression();
+    emit_cache();
 
     size_t if_jmp = emit_jmp(OpCode::Jif);
 
@@ -358,12 +462,14 @@ void Compiler::if_stmt()
 void Compiler::if_expr()
 {
     expression();
+    emit_cache();
 
     size_t if_jmp = emit_jmp(OpCode::Jif);
 
     consume(TokenType::Do, "expected do keyword after if condition");
 
     expression();
+    emit_cache();
 
     size_t else_jmp = emit_jmp(OpCode::Jump);
 
@@ -372,6 +478,7 @@ void Compiler::if_expr()
     consume(TokenType::Else, "must have a matching else with an if expression");
 
     expression();
+    emit_cache();
 
     patch_jmp(else_jmp);
 }
@@ -381,6 +488,7 @@ void Compiler::while_stmt()
     size_t start = m_chunk.bytes.size() - 2;
 
     expression();
+    emit_cache();
 
     size_t jmp = emit_jmp(OpCode::Jif);
 
@@ -414,10 +522,19 @@ void Compiler::var_declaration()
         .index      = index,
     };
 
-    set_var(var);
+    consume(TokenType::Identifier, "expected identifier");
+
+    std::string_view var_name = m_previous_token.lexeme;
 
     if(match(TokenType::Equal))
+    {
         expression();
+
+        if(is_known())
+            var.value_known = true;
+
+        emit_cache();
+    }
     else
     {
         if(is_const)
@@ -426,18 +543,16 @@ void Compiler::var_declaration()
         emit_bytes(OpCode::Nil);
     }
 
-    OpCode set_op = OpCode::SetMem;
+    m_chunk.set(OpCode::SetMem, Value(index), m_previous_token.line);
 
-    m_chunk.set(set_op, Value(index), m_previous_token.line);
+    set_var(var, var_name);
 
     if(match(TokenType::Comma))
         var_declaration();
 }
 
-int Compiler::resolve_var()
+int Compiler::resolve_var(std::string_view identifier) const
 {
-    std::string_view identifier = m_previous_token.lexeme;
-
     for(int i = m_scope_depth; i >= 0; i--)
     {
         if(m_variables[i].contains(identifier))
@@ -447,12 +562,8 @@ int Compiler::resolve_var()
     return -1;
 }
 
-void Compiler::set_var(Variable var)
+void Compiler::set_var(Variable var, std::string_view var_name)
 {
-    consume(TokenType::Identifier, "expected identifier");
-
-    std::string_view var_name = m_previous_token.lexeme;
-
     VarTable &vars = m_variables[m_scope_depth];
 
     if(vars.contains(var_name))
@@ -479,6 +590,7 @@ void Compiler::synchronize()
 inline void Compiler::print_stmt()
 {
     expression();
+    emit_cache();
     emit_bytes(OpCode::Print);
 }
 
@@ -589,9 +701,3 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {nullptr,     nullptr,   Precedence::None}, // error
         {nullptr,     nullptr,   Precedence::None}, // eof
 };
-
-
-
-
-
-

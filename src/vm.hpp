@@ -8,7 +8,7 @@
 #include "chunk.hpp"
 #include "stack.hpp"
 
-#define DEBUG_TRACE false
+#define DEBUG_TRACE true
 
 constexpr uint16_t MaxDataSize = sizeof(Value) * 1000;
 
@@ -41,8 +41,6 @@ private:
     void runtime_error(std::string_view message);
 
     static bool is_falsy(const Value &value);
-
-    void concat_str();
 
     bool same_operands(ValueType type) const;
 

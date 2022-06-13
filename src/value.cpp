@@ -26,7 +26,7 @@ void Value::copy_from(const Value &value)
 bool operator==(const Value &a, const Value &b)
 {
     if(a.type != b.type)
-        return false;
+        throw std::exception("invalid operands to binary expression");
 
     switch(a.type)
     {
@@ -40,6 +40,9 @@ bool operator==(const Value &a, const Value &b)
 
 Value operator+(const Value &a, const Value &b)
 {
+    if(a.type != b.type)
+        throw std::exception("invalid operands to binary expression");
+
     switch(a.type)
     {
         case ValueType::Nil:    return nullptr;
@@ -67,6 +70,9 @@ std::string Value::to_string() const
 
 Value operator-(const Value &a, const Value &b)
 {
+    if(a.type != b.type)
+        throw std::exception("invalid operands to binary expression");
+
     switch(a.type)
     {
         case ValueType::Nil:    return nullptr;
@@ -79,6 +85,9 @@ Value operator-(const Value &a, const Value &b)
 
 Value &operator+=(Value &a, const Value &b)
 {
+    if(a.type != b.type)
+        throw std::exception("invalid operands to binary expression");
+
     switch(a.type)
     {
         case ValueType::Number: a.as.number += b.as.number; break;
@@ -91,6 +100,9 @@ Value &operator+=(Value &a, const Value &b)
 
 Value operator/(const Value &a, const Value &b)
 {
+    if(a.type != b.type)
+        throw std::exception("invalid operands to binary expression");
+
     switch(a.type)
     {
         case ValueType::Number: return Value(a.as.number / b.as.number);
@@ -100,6 +112,9 @@ Value operator/(const Value &a, const Value &b)
 
 Value operator*(const Value &a, const Value &b)
 {
+    if(a.type != b.type)
+        throw std::exception("invalid operands to binary expression");
+
     switch(a.type)
     {
         case ValueType::Number: return Value(a.as.number * b.as.number);
@@ -109,6 +124,9 @@ Value operator*(const Value &a, const Value &b)
 
 bool operator>(const Value &a, const Value &b)
 {
+    if(a.type != b.type)
+        throw std::exception("invalid operands to binary expression");
+
     switch(a.type)
     {
         case ValueType::Nil:    return false;
@@ -120,6 +138,9 @@ bool operator>(const Value &a, const Value &b)
 
 bool operator<(const Value &a, const Value &b)
 {
+    if(a.type != b.type)
+        throw std::exception("invalid operands to binary expression");
+
     switch(a.type)
     {
         case ValueType::Nil:    return false;
@@ -131,6 +152,9 @@ bool operator<(const Value &a, const Value &b)
 
 Value &operator-=(Value &a, const Value &b)
 {
+    if(a.type != b.type)
+        throw std::exception("invalid operands to binary expression");
+
     switch(a.type)
     {
         case ValueType::Number: a.as.number -= b.as.number; break;
@@ -142,6 +166,9 @@ Value &operator-=(Value &a, const Value &b)
 
 Value &operator*=(Value &a, const Value &b)
 {
+    if(a.type != b.type)
+        throw std::exception("invalid operands to binary expression");
+
     switch(a.type)
     {
         case ValueType::Number: a.as.number *= b.as.number; break;
@@ -153,6 +180,9 @@ Value &operator*=(Value &a, const Value &b)
 
 Value &operator/=(Value &a, const Value &b)
 {
+    if(a.type != b.type)
+        throw std::exception("invalid operands to binary expression");
+
     switch(a.type)
     {
         case ValueType::Number: a.as.number /= b.as.number; break;
@@ -160,6 +190,64 @@ Value &operator/=(Value &a, const Value &b)
     }
 
     return a;
+}
+
+bool operator<=(const Value &a, const Value &b)
+{
+    if(a.type != b.type)
+        throw std::exception("invalid operands to binary expression");
+
+    switch(a.type)
+    {
+        case ValueType::Nil:    return false;
+        case ValueType::Number: return a.as.number <= b.as.number;
+        default: return false;
+    }
+}
+
+bool operator>=(const Value &a, const Value &b)
+{
+    if(a.type != b.type)
+        throw std::exception("invalid operands to binary expression");
+
+    switch(a.type)
+    {
+        case ValueType::Nil:    return false;
+        case ValueType::Number: return a.as.number >= b.as.number;
+        default: return false;
+    }
+}
+
+Value Value::power(const Value &b) const
+{
+    if(type != b.type)
+        throw std::exception("invalid operands to binary expression");
+
+    switch(type)
+    {
+        case ValueType::Number: return Value(std::pow(as.number, b.as.number));
+        default: return nullptr;
+    }
+}
+
+Value Value::mod(const Value &b) const
+{
+    if(type != b.type)
+        throw std::exception("invalid operands to binary expression");
+
+    switch(type)
+    {
+        case ValueType::Number: return Value(std::fmod(as.number, b.as.number));
+        default: return nullptr;
+    }
+}
+
+bool Value::is_falsy() const
+{
+    return
+        type == ValueType::Nil
+        ||
+        (type == ValueType::Bool && !as.boolean);
 }
 
 

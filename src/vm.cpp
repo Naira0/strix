@@ -7,18 +7,24 @@
 #include "fmt.hpp"
 #include "debug.hpp"
 
-#define BINARY_OP(op, type)               \
+#define BINARY_OP(op)               \
     do                              \
     {                               \
-          if(!same_operands(type)) \
+          if(!same_operands()) \
           {                   \
                 runtime_error("invalid operands provided to binary expression"); \
                 break;\
+          }                         \
+          try                       \
+          {                         \
+              Value b = m_stack.pop();  \
+              Value a = m_stack.pop();  \
+                       \
+              m_stack.emplace(a op b);  \
+          } catch(std::exception &e)\
+          {                         \
+            runtime_error(e.what());\
           }\
-          Value b = m_stack.pop();  \
-          Value a = m_stack.pop();  \
-                   \
-          m_stack.emplace(a op b);  \
     } while(false)
 
 #define BINARY_OP_MOD(op) \
@@ -77,7 +83,7 @@ InterpretResult VM::run()
                 if(match(ValueType::Address))
                     BINARY_OP_MOD(+=);
                 else
-                    BINARY_OP(+, ValueType::Number);
+                    BINARY_OP(+); // fix this
                 break;
             }
             case Subtract:
@@ -85,7 +91,7 @@ InterpretResult VM::run()
                 if(match(ValueType::Address))
                     BINARY_OP_MOD(-=);
                 else
-                    BINARY_OP(-, ValueType::Number);
+                    BINARY_OP(-);
                 break;
             }
             case Multiply:
@@ -93,7 +99,7 @@ InterpretResult VM::run()
                 if(match(ValueType::Address))
                     BINARY_OP_MOD(*=);
                 else
-                    BINARY_OP(*, ValueType::Number);
+                    BINARY_OP(*);
                 break;
             }
             case Divide:
@@ -101,11 +107,11 @@ InterpretResult VM::run()
                 if(match(ValueType::Address))
                     BINARY_OP_MOD(/=);
                 else
-                    BINARY_OP(/, ValueType::Number);
+                    BINARY_OP(/);
                 break;
             }
-            case Greater:  BINARY_OP(>, ValueType::Number); break;
-            case Less:     BINARY_OP(<, ValueType::Number); break;
+            case Greater:  BINARY_OP(>); break;
+            case Less:     BINARY_OP(<); break;
 
             case Mod:
             {
@@ -294,29 +300,6 @@ inline bool VM::is_falsy(const Value &value)
     value.type == ValueType::Nil
     ||
     (value.type == ValueType::Bool && !value.as.boolean);
-}
-
-void VM::concat_str()
-{
-    Value b = m_stack.pop();
-    Value a = m_stack.pop();
-
-    auto s2 = b.get<String>();
-    auto s1 = a.get<String>();
-
-    if(!s1 || !s2)
-        runtime_error("invalid strings on stack");
-
-    size_t length = s1->length + s2->length;
-
-    char *data = new char[length+2];
-
-    std::memcpy(data, s1->data, s1->length);
-    std::memcpy(data+s1->length, s2->data, s2->length);
-
-    data[length] = '\0';
-
-    m_stack.emplace(new String(data, length));
 }
 
 inline bool VM::same_operands(ValueType type) const

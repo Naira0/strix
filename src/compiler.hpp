@@ -31,6 +31,32 @@ enum class ParseState : uint8_t
     FString,
 };
 
+struct Cache
+{
+    enum class Type : uint8_t { Var, Value };
+
+    struct Item
+    {
+        Type type;
+        std::string_view lexeme;
+        Value value;
+    };
+
+    std::vector<Item> items;
+
+    void set(Value &&value)
+    {
+        items.emplace_back(Type::Value, "", std::forward<Value>(value));
+    }
+
+    Item get()
+    {
+        Item value = std::move(items.back());
+        items.pop_back();
+        return value;
+    }
+};
+
 class Compiler
 {
 public:
@@ -61,6 +87,7 @@ private:
         size_t depth;
         bool is_mutable;
         uint16_t index;
+        bool value_known;
     };
 
     using VarTable = std::unordered_map<std::string_view, Variable>;
@@ -71,6 +98,8 @@ private:
 
     // counter for data index that mirrors the vms arrays
     int m_data_index = 0;
+
+    Cache m_cache;
 
     typedef void(Compiler::*ParseFN)();
 
@@ -102,6 +131,12 @@ private:
     void patch_jmp(size_t offset);
 
     void emit_rollback(size_t start);
+
+    bool emit_cache();
+
+    bool is_known(const Cache::Item &item) const;
+
+    bool is_known() const;
 
     void number();
 
@@ -141,9 +176,9 @@ private:
 
     void var_declaration();
 
-    int resolve_var();
+    int resolve_var(std::string_view identifier) const;
 
-    void set_var(Variable var);
+    void set_var(Variable var, std::string_view var_name);
 
     void synchronize();
 
