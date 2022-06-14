@@ -40,6 +40,7 @@
     e(FStringEnd)            \
     e(Number)                \
     e(And)                   \
+    e(Is)                    \
     e(Else)                  \
     e(False)                 \
     e(True)                  \

@@ -109,7 +109,7 @@ struct String : Object
             data = string.data;
         else
         {
-            data = new char[length];
+            data = new char[length+1];
             std::strcpy(data, string.data);
         }
     }
@@ -126,7 +126,7 @@ struct String : Object
         if(obj->type() != ObjectType::String)
             return false;
 
-        auto str = dynamic_cast<const String*>(obj);
+        auto str = static_cast<const String*>(obj);
 
         // compares object pointers to do constant time string comparisons
         auto s1 = intern_strings.find(str->to_sv());
@@ -137,7 +137,7 @@ struct String : Object
 
     Object* add(const Object *obj) override
     {
-        auto str = dynamic_cast<const String*>(obj);
+        auto str = static_cast<const String*>(obj);
 
         auto [buffer, new_len] = copy_tobuffer(str);
 
@@ -146,17 +146,16 @@ struct String : Object
 
     Object* plus_equal(const Object *obj) override
     {
-        auto str = dynamic_cast<const String*>(obj);
+        auto str = static_cast<const String*>(obj);
 
         auto [buffer, new_len] = copy_tobuffer(str);
 
         if(!is_static)
             delete[] data;
 
-        data = buffer;
-        length = new_len;
-        // for some reason the destructor shits itself when deleting this fix later for now it leaks memory
-        //is_static = false;
+        data      = buffer;
+        length    = new_len;
+        is_static = false;
 
         return this;
     }

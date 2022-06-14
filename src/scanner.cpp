@@ -26,6 +26,7 @@ static const std::unordered_map<std::string_view, TokenType> g_keywords =
         {"this",   This},
         {"var",    Var},
         {"const",  Const},
+        {"is",     Is},
         {"while",  While}
 };
 

@@ -130,6 +130,9 @@ struct Value
 
     bool is_falsy() const;
 
+    // later on will be used for making sure more complex types match
+    bool type_cmp(const Value &b) const;
+
 private:
     void move_from(Value &&value);
     void copy_from(const Value &value);

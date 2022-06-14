@@ -32,6 +32,7 @@
     e(And)                  \
     e(Print)                \
     e(LoadAddr)             \
+    e(TypeCmp)              \
     e(Jif)                  \
     e(Jump)                 \
     e(RollBack)             \

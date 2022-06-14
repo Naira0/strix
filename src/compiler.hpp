@@ -31,6 +31,7 @@ enum class ParseState : uint8_t
     FString,
 };
 
+
 struct Cache
 {
     enum class Type : uint8_t { Var, Value };
@@ -56,6 +57,7 @@ struct Cache
         return value;
     }
 };
+
 
 class Compiler
 {
@@ -88,6 +90,8 @@ private:
         bool is_mutable;
         uint16_t index;
         bool value_known;
+        Value *value;
+        ValueType type;
     };
 
     using VarTable = std::unordered_map<std::string_view, Variable>;
@@ -138,6 +142,8 @@ private:
 
     bool is_known() const;
 
+    bool is_two_known() const;
+
     void number();
 
     void string();
@@ -171,6 +177,8 @@ private:
     void if_expr();
 
     void while_stmt();
+
+    void for_stmt();
 
     void declaration();
 

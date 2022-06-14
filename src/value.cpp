@@ -250,6 +250,11 @@ bool Value::is_falsy() const
         (type == ValueType::Bool && !as.boolean);
 }
 
+bool Value::type_cmp(const Value &b) const
+{
+    return type == b.type;
+}
+
 
 
 

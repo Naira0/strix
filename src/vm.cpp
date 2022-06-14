@@ -238,6 +238,16 @@ InterpretResult VM::run()
                 break;
             }
 
+            case TypeCmp:
+            {
+                Value v1 = m_stack.pop();
+                Value v2 = m_stack.pop();
+
+                m_stack.emplace(v1.type_cmp(v2));
+
+                break;
+            }
+
             case ToString:
             {
                 Value value = m_stack.pop();
@@ -274,6 +284,8 @@ InterpretResult VM::run()
             }
 
             case Print: fmt::print("{}\n", m_stack.pop()); break;
+
+            case NoOp: break;
 
             case Return:
             {

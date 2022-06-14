@@ -12,8 +12,10 @@
 /*
  * TODO:
  * add bitwise operators
- * implement constant folding
  * break labels
+ * is operator for type checking 'if t1 is t2 { ... }'
+ * string escaping
+ * improve the constant folding implementation. make it so it can cache instructions as well as values
  */
 
 void print_tokens(char *path)
@@ -87,7 +89,6 @@ void run_file(const char *path)
     InterpretResult result = vm.interpret(contents);
 }
 
-using Vvar = std::variant<double, bool, std::nullptr_t, Object*, uint16_t>;
 
 int main(int argc, char **argv)
 {

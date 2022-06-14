@@ -133,6 +133,15 @@ bool Compiler::is_known() const
     return is_known(item);
 }
 
+bool Compiler::is_two_known() const
+{
+    if(m_cache.items.size() < 2)
+        return false;
+    const auto &item1 = m_cache.items.back();
+    const auto &item2 = m_cache.items.end()-1;
+    return is_known(item1) && is_known(*item2);
+}
+
 bool Compiler::is_known(const Cache::Item &item) const
 {
     if(item.type == Cache::Type::Value)
@@ -211,13 +220,10 @@ inline void Compiler::binary()
 
     parse_precedence((Precedence)((uint8_t)rule.precedence+1));
 
-    auto item2 = m_cache.get();
-    auto item1 = m_cache.get();
-
-    if(is_known(item1) && is_known(item2))
+    if(is_two_known())
     {
-        auto b = item2.value;
-        auto a = item1.value;
+        auto b = m_cache.get().value;
+        auto a = m_cache.get().value;
 
         try
         {
@@ -245,8 +251,8 @@ inline void Compiler::binary()
         }
     }
 
-    emit_constant(std::move(item2.value));
-    emit_constant(std::move(item1.value));
+    emit_cache();
+    emit_cache();
 
     switch(operator_type)
     {
@@ -264,6 +270,7 @@ inline void Compiler::binary()
         case TokenType::Slash:        return emit_bytes(OpCode::Divide);
         case TokenType::Or:           return emit_bytes(OpCode::Or);
         case TokenType::And:          return emit_bytes(OpCode::And);
+        case TokenType::Is:           return emit_bytes(OpCode::TypeCmp);
         default: return;
     }
 
@@ -307,9 +314,9 @@ inline void Compiler::literal()
 {
     switch(m_previous_token.type)
     {
-        case TokenType::True:  return emit_bytes(OpCode::True);
-        case TokenType::False: return emit_bytes(OpCode::False);
-        case TokenType::Nil:   return emit_bytes(OpCode::Nil);
+        case TokenType::True:  return m_cache.set(Value(true));
+        case TokenType::False: return m_cache.set(Value(false));
+        case TokenType::Nil:   return m_cache.set(Value(nullptr));
         default: return;
     }
 }
@@ -359,6 +366,9 @@ void Compiler::variable()
         return error_at(previous_token, "constant variable cannot be reassigned");
 
     m_chunk.set(op, Value(var.index), previous_token.line);
+
+    if(assigned)
+        var.type = m_chunk.constants.back().type;
 
     if(extra != OpCode::NoOp)
         emit_bytes(extra);
@@ -499,6 +509,11 @@ void Compiler::while_stmt()
     patch_jmp(jmp);
 }
 
+void Compiler::for_stmt()
+{
+
+}
+
 void Compiler::declaration()
 {
     if(match(TokenType::Var) || match(TokenType::Const))
@@ -540,8 +555,12 @@ void Compiler::var_declaration()
         if(is_const)
             return error("constant variable must be initialized with a value");
 
-        emit_bytes(OpCode::Nil);
+        emit_constant(Value(nullptr));
     }
+
+    Value &value = m_chunk.constants.back();
+    var.value = &value;
+    var.type = value.type;
 
     m_chunk.set(OpCode::SetMem, Value(index), m_previous_token.line);
 
@@ -681,6 +700,7 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {nullptr, nullptr, Precedence::None}, // fstringend
         {&Compiler::number,     nullptr,     Precedence::None}, // number
         {nullptr,     &Compiler::binary,   Precedence::And}, //  and
+        {nullptr,     &Compiler::binary,   Precedence::And}, // is
         {nullptr,     nullptr,   Precedence::None}, // else
         {&Compiler::literal,     nullptr,   Precedence::None}, // false
         {&Compiler::literal,     nullptr,   Precedence::None}, // true
@@ -701,3 +721,7 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {nullptr,     nullptr,   Precedence::None}, // error
         {nullptr,     nullptr,   Precedence::None}, // eof
 };
+
+
+
+
