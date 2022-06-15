@@ -256,8 +256,8 @@ inline void Compiler::binary()
 
     switch(operator_type)
     {
-        case TokenType::BangEqual:    return emit_bytes(OpCode::Equal, OpCode::Not);
-        case TokenType::EqualEqual:   return emit_bytes(OpCode::Equal);
+        case TokenType::BangEqual:    return emit_bytes(OpCode::Cmp, OpCode::Not);
+        case TokenType::EqualEqual:   return emit_bytes(OpCode::Cmp);
         case TokenType::Greater:      return emit_bytes(OpCode::Greater);
         case TokenType::GreaterEqual: return emit_bytes(OpCode::Greater, OpCode::Not);
         case TokenType::Less:         return emit_bytes(OpCode::Less);
@@ -446,8 +446,30 @@ void Compiler::statement()
         block();
         end_scope();
     }
+    else if(match(For))
+        for_stmt();
+    else if(match(SemiColon))
+        return;
+    else if(match(Continue) || match(Break))
+        continue_break_stmt();
     else
         expression();
+}
+
+void Compiler::continue_break_stmt()
+{
+    if(m_loop_jmps.empty())
+        return error("break statement cannot be used outside of a loop");
+
+    OpCode op = check_last(TokenType::Break) ? OpCode::Jump : OpCode::RollBack;
+    size_t jmp = -1;
+
+    if(op == OpCode::RollBack)
+        emit_rollback(m_loop_starts[m_loop_jmps.size()-1]);
+    else
+        jmp = emit_jmp(op);
+
+    m_loop_jmps[m_loop_jmps.size()-1].emplace_back(jmp);
 }
 
 void Compiler::if_stmt()
@@ -490,12 +512,16 @@ void Compiler::if_expr()
     expression();
     emit_cache();
 
+
     patch_jmp(else_jmp);
 }
 
 void Compiler::while_stmt()
 {
+    m_loop_jmps.emplace_back();
+
     size_t start = m_chunk.bytes.size() - 2;
+    m_loop_starts[m_loop_jmps.size()-1] = start;
 
     expression();
     emit_cache();
@@ -507,11 +533,67 @@ void Compiler::while_stmt()
     emit_rollback(start);
 
     patch_jmp(jmp);
+
+    for(auto i : m_loop_jmps[m_loop_jmps.size()-1])
+    {
+        if(i != -1)
+            patch_jmp(i);
+    }
+
+    m_loop_jmps.pop_back();
 }
 
 void Compiler::for_stmt()
 {
+    begin_scope();
 
+    // initializer clause
+    if(check(TokenType::Identifier))
+        var_declaration();
+    else
+    {
+        expression();
+        emit_cache();
+    }
+
+#define CONSUME consume(TokenType::SemiColon, "expected ';'");
+
+    CONSUME
+
+    size_t body_start = m_chunk.bytes.size()-2;
+    size_t exit_jmp = -1;
+
+    // condition clause
+
+    expression();
+    emit_cache();
+
+    CONSUME
+
+    exit_jmp = emit_jmp(OpCode::Jif);
+
+    // increment clause
+
+    size_t body_jmp = emit_jmp(OpCode::Jump);
+    size_t inc_start = m_chunk.bytes.size()-1;
+
+    expression();
+    emit_cache();
+
+    emit_rollback(body_start);
+    body_start = inc_start;
+    patch_jmp(body_start);
+
+    // body
+    statement();
+    emit_rollback(body_start);
+
+    if(exit_jmp != -1)
+        patch_jmp(exit_jmp);
+
+    end_scope();
+
+#undef CONSUME
 }
 
 void Compiler::declaration()
@@ -657,6 +739,11 @@ inline bool Compiler::check(TokenType type) const
     return m_current_token.type == type;
 }
 
+bool Compiler::check_last(TokenType type) const
+{
+    return m_previous_token.type == type;
+}
+
 bool Compiler::match(TokenType type)
 {
     if(!check(type))
@@ -676,6 +763,7 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {&Compiler::unary, &Compiler::binary,   Precedence::Term}, // minus
         {nullptr, &Compiler::binary,   Precedence::Term}, // plus
         {nullptr,     nullptr,   Precedence::None}, // semicolon
+        {nullptr,     nullptr, Precedence::None},  // colon
         {nullptr, &Compiler::binary,   Precedence::Factor}, // slash
         {nullptr, &Compiler::binary,   Precedence::Factor}, // star
         {nullptr, nullptr, Precedence::None}, // plus equal
@@ -718,10 +806,8 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {nullptr,     nullptr,   Precedence::None}, // var
         {nullptr,     nullptr,   Precedence::None}, // const
         {nullptr,     nullptr,   Precedence::None}, // while
+        {nullptr,     nullptr,   Precedence::None}, // continue
+        {nullptr,     nullptr,   Precedence::None}, // break
         {nullptr,     nullptr,   Precedence::None}, // error
         {nullptr,     nullptr,   Precedence::None}, // eof
 };
-
-
-
-

@@ -15,7 +15,7 @@
     e(False)                \
     e(Pop)                  \
     e(Nil)                  \
-    e(Equal)                \
+    e(Cmp)                  \
     e(Greater)              \
     e(Less)                 \
     e(Add)                  \
@@ -46,8 +46,8 @@ static const char *opcode_str[] = {FOREACH_OPCODES(GENERATE_STRING)};
 
 struct Bytes
 {
-    OpCode code;
-    size_t constant;
+    OpCode   code;
+    uint16_t constant;
     uint32_t line;
 
     Bytes(OpCode code, size_t constant, uint32_t line) :

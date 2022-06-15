@@ -23,6 +23,7 @@ struct Object
     virtual ~Object() = default;
 
     virtual Object* clone() = 0;
+    virtual Object* move() = 0;
 
     virtual std::string to_string() = 0;
 
@@ -73,11 +74,12 @@ struct String : Object
     String(std::string &&str)
     {
         char *str_data = &str[0];
-        data = new char[str.size()+1];
-        std::memcpy(data, str_data, str.size());
 
-        length = str.size();
+        length    = str.size();
+        data      = new char[length+1];
         is_static = false;
+
+        std::memcpy(data, str_data, length+1);
     }
 
     ~String() override
@@ -88,22 +90,17 @@ struct String : Object
 
     String(String &&string) noexcept
     {
-        data = string.data;
+        data      = string.data;
         is_static = string.is_static;
-        length = string.length;
+        length    = string.length;
 
         string.data = nullptr;
-    }
-
-    Object* clone() override
-    {
-        return new String(*this);
     }
 
     String(const String &string)
     {
         is_static = string.is_static;
-        length = string.length;
+        length    = string.length;
 
         if(is_static)
             data = string.data;
@@ -112,6 +109,16 @@ struct String : Object
             data = new char[length+1];
             std::strcpy(data, string.data);
         }
+    }
+
+    Object* clone() override
+    {
+        return new String(*this);
+    }
+
+    Object* move() override
+    {
+        return new String(std::move(*this));
     }
 
     std::string to_string() override

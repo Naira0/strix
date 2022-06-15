@@ -151,7 +151,7 @@ InterpretResult VM::run()
 
             //case Pop: if(!m_stack.empty()) m_stack.pop(); break;
 
-            case Equal:
+            case Cmp:
             {
                 Value b = m_stack.pop();
                 Value a = m_stack.pop();

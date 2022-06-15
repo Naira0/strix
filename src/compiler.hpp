@@ -103,6 +103,12 @@ private:
     // counter for data index that mirrors the vms arrays
     int m_data_index = 0;
 
+    // elements are the start of the loop at the current loop depth
+    std::array<size_t, 50> m_loop_starts;
+    // index in first dimension is the loop depth
+    // in the second its the index of the byte that must be updated in the chunk
+    std::vector<std::vector<size_t>> m_loop_jmps;
+
     Cache m_cache;
 
     typedef void(Compiler::*ParseFN)();
@@ -172,6 +178,8 @@ private:
 
     void statement();
 
+    void continue_break_stmt();
+
     void if_stmt();
 
     void if_expr();
@@ -199,6 +207,8 @@ private:
     void call(Compiler::ParseFN fn);
 
     bool check(TokenType type) const;
+
+    bool check_last(TokenType type) const;
 
     bool match(TokenType type);
 

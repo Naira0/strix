@@ -13,7 +13,6 @@
  * TODO:
  * add bitwise operators
  * break labels
- * is operator for type checking 'if t1 is t2 { ... }'
  * string escaping
  * improve the constant folding implementation. make it so it can cache instructions as well as values
  */

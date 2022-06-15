@@ -9,25 +9,27 @@ using enum TokenType;
 
 static const std::unordered_map<std::string_view, TokenType> g_keywords =
 {
-        {"and",    And},
-        {"obj",    Obj},
-        {"else",   Else},
-        {"false",  False},
-        {"true",   True},
-        {"for",    For},
-        {"fn",     Fn},
-        {"if",     If},
-        {"do",     Do},
-        {"nil",    Nil},
-        {"or",     Or},
-        {"print",  Print},
-        {"return", Return},
-        {"super",  Super},
-        {"this",   This},
-        {"var",    Var},
-        {"const",  Const},
-        {"is",     Is},
-        {"while",  While}
+        {"and",      And},
+        {"obj",      Obj},
+        {"else",     Else},
+        {"false",    False},
+        {"true",     True},
+        {"for",      For},
+        {"fn",       Fn},
+        {"if",       If},
+        {"do",       Do},
+        {"nil",      Nil},
+        {"or",       Or},
+        {"print",    Print},
+        {"return",   Return},
+        {"super",    Super},
+        {"this",     This},
+        {"var",      Var},
+        {"const",    Const},
+        {"is",       Is},
+        {"while",    While},
+        {"continue", Continue},
+        {"break",    Break},
 };
 
 Token Scanner::scan_token()
@@ -179,6 +181,7 @@ Token Scanner::scan_identifier()
         advance();
 
     std::string_view text = m_source.substr(m_start, m_offset - m_start);
+
     TokenType type = !g_keywords.contains(text) ? Identifier : g_keywords.at(text);
 
     return build(type);

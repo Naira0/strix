@@ -16,6 +16,7 @@
     e(Minus)                 \
     e(Plus)                  \
     e(SemiColon)             \
+    e(Colon)                 \
     e(Slash)                 \
     e(Star)                  \
     e(PlusEqual)             \
@@ -58,6 +59,8 @@
     e(Var)                   \
     e(Const)                 \
     e(While)                 \
+    e(Continue)              \
+    e(Break)                 \
     e(Error)                 \
     e(Eof)                   \
 
