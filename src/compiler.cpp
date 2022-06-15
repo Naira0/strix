@@ -545,6 +545,8 @@ void Compiler::while_stmt()
 
 void Compiler::for_stmt()
 {
+    m_loop_jmps.emplace_back();
+
     begin_scope();
 
     // initializer clause
@@ -567,6 +569,8 @@ void Compiler::for_stmt()
 
     expression();
     emit_cache();
+
+    m_loop_starts[m_loop_jmps.size()-1] = m_chunk.bytes.size();
 
     CONSUME
 
@@ -591,7 +595,15 @@ void Compiler::for_stmt()
     if(exit_jmp != -1)
         patch_jmp(exit_jmp);
 
+    for(auto i : m_loop_jmps[m_loop_jmps.size()-1])
+    {
+        if(i != -1)
+            patch_jmp(i);
+    }
+
     end_scope();
+
+    m_loop_jmps.pop_back();
 
 #undef CONSUME
 }
