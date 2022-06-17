@@ -58,7 +58,6 @@ struct Cache
     }
 };
 
-
 class Compiler
 {
 public:
@@ -101,7 +100,7 @@ private:
     size_t m_scope_depth = 0;
 
     // counter for data index that mirrors the vms arrays
-    int m_data_index = 0;
+    uint16_t m_data_index = 0;
 
     // elements are the start of the loop at the current loop depth
     std::array<size_t, 50> m_loop_starts;
@@ -190,7 +189,7 @@ private:
 
     void declaration();
 
-    void var_declaration();
+    void var_declaration(bool consume_identifier);
 
     int resolve_var(std::string_view identifier) const;
 
@@ -211,5 +210,7 @@ private:
     bool check_last(TokenType type) const;
 
     bool match(TokenType type);
+
+    Compiler::Variable build_var(bool is_mutable);
 
 };

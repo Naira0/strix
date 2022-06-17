@@ -120,6 +120,8 @@ struct Value
 
     friend bool operator==(const Value &a, const Value &b);
 
+    friend bool operator!=(const Value &a, const Value &b);
+
     friend bool operator>=(const Value &a, const Value &b);
 
     friend bool operator<=(const Value &a, const Value &b);

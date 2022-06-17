@@ -549,9 +549,58 @@ void Compiler::for_stmt()
 
     begin_scope();
 
+    size_t body_start, body_jmp, inc_start, exit_jmp;
+    bool range_based = false;
+    uint16_t index = -1;
+    size_t &line = m_previous_token.line;
+
     // initializer clause
     if(check(TokenType::Identifier))
-        var_declaration();
+    {
+        auto identifier = m_current_token.lexeme;
+
+        if(match(TokenType::Identifier) && match(TokenType::In))
+        {
+            Variable var = build_var(true);
+
+            index = var.index;
+
+            expression();
+            emit_cache();
+
+            set_var(var, identifier);
+
+            m_chunk.set(OpCode::SetMem, Value(var.index), line);
+
+            consume(TokenType::DotDot, "expected token '..'");
+
+            bool inclusive = match(TokenType::Equal);
+
+            body_start = m_chunk.bytes.size()-2;
+            m_loop_starts[m_loop_jmps.size()-1] = body_start;
+
+            // gets index
+            m_chunk.set(OpCode::GetMem, Value(var.index), line);
+
+            // gets end range
+            expression();
+            emit_cache();
+
+            // condition
+            if(inclusive)
+                emit_bytes(OpCode::Greater, OpCode::Not);
+            else
+                emit_bytes(OpCode::Less);
+
+            exit_jmp = emit_jmp(OpCode::Jif);
+
+            range_based = true;
+
+            goto body;
+        }
+        else
+            var_declaration(false);
+    }
     else
     {
         expression();
@@ -562,8 +611,7 @@ void Compiler::for_stmt()
 
     CONSUME
 
-    size_t body_start = m_chunk.bytes.size()-2;
-    size_t exit_jmp = -1;
+    body_start = m_chunk.bytes.size()-2;
 
     // condition clause
 
@@ -577,19 +625,31 @@ void Compiler::for_stmt()
     exit_jmp = emit_jmp(OpCode::Jif);
 
     // increment clause
-
-    size_t body_jmp = emit_jmp(OpCode::Jump);
-    size_t inc_start = m_chunk.bytes.size()-1;
+    body_jmp = emit_jmp(OpCode::Jump);
+    inc_start = m_chunk.bytes.size()-1;
 
     expression();
     emit_cache();
 
+    patch_jmp(body_jmp);
+
     emit_rollback(body_start);
+
     body_start = inc_start;
+
     patch_jmp(body_start);
+
+body:
 
     // body
     statement();
+
+    if(range_based)
+    {
+        m_chunk.set(OpCode::LoadAddr, Value(index), line);
+        emit_bytes(OpCode::Increment);
+    }
+
     emit_rollback(body_start);
 
     if(exit_jmp != -1)
@@ -611,7 +671,7 @@ void Compiler::for_stmt()
 void Compiler::declaration()
 {
     if(match(TokenType::Var) || match(TokenType::Const))
-        var_declaration();
+        var_declaration(true);
     else
         statement();
 
@@ -619,19 +679,20 @@ void Compiler::declaration()
         synchronize();
 }
 
-void Compiler::var_declaration()
+void Compiler::var_declaration(bool consume_identifier = true)
 {
     bool is_const = m_previous_token.type == TokenType::Const;
     uint16_t index = m_data_index++;
 
     Variable var
     {
-        .depth = m_scope_depth,
+        .depth      = m_scope_depth,
         .is_mutable = !is_const,
         .index      = index,
     };
 
-    consume(TokenType::Identifier, "expected identifier");
+    if(consume_identifier)
+        consume(TokenType::Identifier, "expected identifier");
 
     std::string_view var_name = m_previous_token.lexeme;
 
@@ -661,7 +722,7 @@ void Compiler::var_declaration()
     set_var(var, var_name);
 
     if(match(TokenType::Comma))
-        var_declaration();
+        var_declaration(false);
 }
 
 int Compiler::resolve_var(std::string_view identifier) const
@@ -772,6 +833,7 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {nullptr,     nullptr,   Precedence::None}, // rightbrace
         {nullptr,     nullptr,   Precedence::None}, // comma
         {nullptr,     nullptr,   Precedence::None}, // dot
+        {nullptr,     nullptr,   Precedence::None}, // dotdot
         {&Compiler::unary, &Compiler::binary,   Precedence::Term}, // minus
         {nullptr, &Compiler::binary,   Precedence::Term}, // plus
         {nullptr,     nullptr,   Precedence::None}, // semicolon
@@ -801,6 +863,7 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {&Compiler::number,     nullptr,     Precedence::None}, // number
         {nullptr,     &Compiler::binary,   Precedence::And}, //  and
         {nullptr,     &Compiler::binary,   Precedence::And}, // is
+        {nullptr, nullptr, Precedence::None}, // in
         {nullptr,     nullptr,   Precedence::None}, // else
         {&Compiler::literal,     nullptr,   Precedence::None}, // false
         {&Compiler::literal,     nullptr,   Precedence::None}, // true
@@ -823,3 +886,15 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {nullptr,     nullptr,   Precedence::None}, // error
         {nullptr,     nullptr,   Precedence::None}, // eof
 };
+
+Compiler::Variable Compiler::build_var(bool is_mutable)
+{
+    return Variable
+    {
+        .depth = m_scope_depth,
+        .is_mutable = is_mutable,
+        .index = m_data_index++
+    };
+}
+
+

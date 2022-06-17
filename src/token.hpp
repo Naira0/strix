@@ -13,6 +13,7 @@
     e(RightBrace)            \
     e(Comma)                 \
     e(Dot)                   \
+    e(DotDot)                \
     e(Minus)                 \
     e(Plus)                  \
     e(SemiColon)             \
@@ -42,6 +43,7 @@
     e(Number)                \
     e(And)                   \
     e(Is)                    \
+    e(In)                    \
     e(Else)                  \
     e(False)                 \
     e(True)                  \

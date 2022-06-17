@@ -27,6 +27,7 @@ static const std::unordered_map<std::string_view, TokenType> g_keywords =
         {"var",      Var},
         {"const",    Const},
         {"is",       Is},
+        {"in",       In},
         {"while",    While},
         {"continue", Continue},
         {"break",    Break},
@@ -48,7 +49,6 @@ Token Scanner::scan_token()
         case '{':  return  build(LeftBrace);
         case '}':  return  build(RightBrace);
         case ',':  return  build(Comma);
-        case '.':  return  build(Dot);
         case '-':
         {
             if(match('='))
@@ -77,6 +77,7 @@ Token Scanner::scan_token()
         case '=': return build(match('=') ? EqualEqual : Equal);
         case '>': return build(match('=') ? GreaterEqual: Greater);
         case '<': return build(match('=') ? LessEqual : Less);
+        case '.': return build(match('.') ? DotDot : Dot);
 
         case 'f':
         {

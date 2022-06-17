@@ -255,6 +255,21 @@ bool Value::type_cmp(const Value &b) const
     return type == b.type;
 }
 
+bool operator!=(const Value &a, const Value &b)
+{
+    if(a.type != b.type)
+        throw std::exception("invalid operands to binary expression");
+
+    switch(a.type)
+    {
+        case ValueType::Nil:    return true;
+        case ValueType::Bool:   return a.as.boolean != b.as.boolean;
+        case ValueType::Number: return a.as.number  != b.as.number;
+        case ValueType::Object: return !a.as.object->compare(b.as.object);
+        default: return false;
+    }
+}
+
 
 
 
