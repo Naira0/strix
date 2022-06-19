@@ -1,3 +1,13 @@
 
-for i in 0..5
-    print i
+const value = 4
+
+switch value
+{
+    1: print "one"
+    2: print "two"
+    3: print "three"
+    default: print "above 3"
+}
+
+print "outer"
+

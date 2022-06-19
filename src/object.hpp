@@ -103,7 +103,9 @@ struct String : Object
         length    = string.length;
 
         if(is_static)
+        {
             data = string.data;
+        }
         else
         {
             data = new char[length+1];

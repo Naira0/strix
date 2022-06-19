@@ -440,6 +440,8 @@ void Compiler::statement()
         if_stmt();
     else if(match(While))
         while_stmt();
+    else if(match(Switch))
+        switch_stmt();
     else if(match(LeftBrace))
     {
         begin_scope();
@@ -541,6 +543,65 @@ void Compiler::while_stmt()
     }
 
     m_loop_jmps.pop_back();
+}
+
+void Compiler::switch_stmt()
+{
+    begin_scope();
+
+    // switch value
+    expression();
+    emit_cache();
+
+    consume(TokenType::LeftBrace, "expected token '{' after switch value");
+
+    // for all the exit jumps after the end of every branch
+    std::vector<size_t> jmp_table;
+
+    while(!check(TokenType::RightBrace) && !check(TokenType::Eof))
+    {
+        // default label
+        if(match(TokenType::Default))
+        {
+            consume(TokenType::Colon, "expected token ':' after case value");
+
+            statement();
+
+            if(!check(TokenType::RightBrace))
+                return error("default label must be the last case in switch statement");
+
+            break;
+        }
+
+        // case value
+        expression();
+        emit_cache();
+
+        consume(TokenType::Colon, "expected token ':' after case value");
+
+        emit_bytes(OpCode::Cmp);
+
+        size_t jmp = emit_jmp(OpCode::Jif);
+
+        // body
+        statement();
+
+        jmp_table.push_back(emit_jmp(OpCode::Jump));
+
+        patch_jmp(jmp);
+
+        // pops case value
+        emit_bytes(OpCode::Pop);
+    }
+
+    for(size_t jmp : jmp_table)
+        patch_jmp(jmp);
+
+    // pops switch value
+    emit_bytes(OpCode::Pop);
+
+    end_scope();
+    consume(TokenType::RightBrace, "expected token '}' at the end of switch statement");
 }
 
 void Compiler::for_stmt()
@@ -825,6 +886,16 @@ bool Compiler::match(TokenType type)
     return true;
 }
 
+Compiler::Variable Compiler::build_var(bool is_mutable)
+{
+    return Variable
+    {
+        .depth = m_scope_depth,
+        .is_mutable = is_mutable,
+        .index = m_data_index++
+    };
+}
+
 const Compiler::ParseRule Compiler::m_rules[] =
 {
         {&Compiler::grouping, nullptr, Precedence::None}, //leftparen
@@ -881,20 +952,10 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {nullptr,     nullptr,   Precedence::None}, // var
         {nullptr,     nullptr,   Precedence::None}, // const
         {nullptr,     nullptr,   Precedence::None}, // while
+        {nullptr,     nullptr,   Precedence::None}, // switch
         {nullptr,     nullptr,   Precedence::None}, // continue
         {nullptr,     nullptr,   Precedence::None}, // break
+        {nullptr,     nullptr,   Precedence::None}, // default
         {nullptr,     nullptr,   Precedence::None}, // error
         {nullptr,     nullptr,   Precedence::None}, // eof
 };
-
-Compiler::Variable Compiler::build_var(bool is_mutable)
-{
-    return Variable
-    {
-        .depth = m_scope_depth,
-        .is_mutable = is_mutable,
-        .index = m_data_index++
-    };
-}
-
-

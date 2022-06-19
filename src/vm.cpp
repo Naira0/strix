@@ -149,12 +149,13 @@ InterpretResult VM::run()
             case False: m_stack.emplace(false);   break;
             case Nil:   m_stack.emplace(nullptr); break;
 
-            //case Pop: if(!m_stack.empty()) m_stack.pop(); break;
+            case Pop:   m_stack.pop(); break;
 
             case Cmp:
             {
-                Value b = m_stack.pop();
-                Value a = m_stack.pop();
+//                Value b = m_stack.pop();
+//                Value a = m_stack.pop();
+                const auto &[a, b] = m_stack.top_two();
 
                 m_stack.emplace(a == b);
 

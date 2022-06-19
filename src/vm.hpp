@@ -8,7 +8,7 @@
 #include "chunk.hpp"
 #include "stack.hpp"
 
-#define DEBUG_TRACE false
+#define DEBUG_TRACE true
 
 constexpr uint16_t MaxDataSize = sizeof(Value) * 1000;
 

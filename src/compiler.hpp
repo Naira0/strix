@@ -185,6 +185,8 @@ private:
 
     void while_stmt();
 
+    void switch_stmt();
+
     void for_stmt();
 
     void declaration();

@@ -47,7 +47,7 @@ static const char *opcode_str[] = {FOREACH_OPCODES(GENERATE_STRING)};
 struct Bytes
 {
     OpCode   code;
-    uint16_t constant;
+    uint16_t constant = -1;
     uint32_t line;
 
     Bytes(OpCode code, size_t constant, uint32_t line) :

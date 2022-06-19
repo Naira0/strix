@@ -95,7 +95,6 @@ int main(int argc, char **argv)
         run_file(argv[1]);
     else
         repl();
-
     // print_tokens(argv[1]);
     // print_bytes(argv[1]);
 }

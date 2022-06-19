@@ -61,8 +61,10 @@
     e(Var)                   \
     e(Const)                 \
     e(While)                 \
+    e(Switch)                \
     e(Continue)              \
     e(Break)                 \
+    e(Default)               \
     e(Error)                 \
     e(Eof)                   \
 
