@@ -6,6 +6,7 @@
 #include "compiler.hpp"
 #include "util/fmt.hpp"
 #include "util/debug.hpp"
+#include "objects/string.hpp"
 
 #define BINARY_OP(op)               \
     do                              \

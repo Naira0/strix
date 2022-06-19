@@ -88,17 +88,13 @@ void run_file(const char *path)
     InterpretResult result = vm.interpret(contents);
 }
 
-
 int main(int argc, char **argv)
 {
-//    if(argc >= 2)
-//        run_file(argv[1]);
-//    else
-//        repl();
+    if(argc >= 2)
+        run_file(argv[1]);
+    else
+        repl();
 
-    String str = String(std::string_view{"hello"});
-
-    fmt::print("{}\n", str.is(ObjectType::String));
     // print_tokens(argv[1]);
     // print_bytes(argv[1]);
 }

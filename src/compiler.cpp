@@ -6,6 +6,7 @@
 #include "util/fmt.hpp"
 #include "types/object.hpp"
 #include "util/debug.hpp"
+#include "objects/string.hpp"
 
 bool Compiler::compile()
 {
@@ -782,7 +783,7 @@ void Compiler::var_declaration(bool consume_identifier = true)
     set_var(var, var_name);
 
     if(match(TokenType::Comma))
-        var_declaration(false);
+        var_declaration();
 }
 
 int Compiler::resolve_var(std::string_view identifier) const

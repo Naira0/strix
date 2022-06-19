@@ -1,0 +1,9 @@
+
+const start = 0, end = 10
+
+print f"start: {start} end: {end}"
+
+for i in start..=end
+    print i
+
+
