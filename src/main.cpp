@@ -2,12 +2,12 @@
 #include <string>
 
 #include "vm.hpp"
-#include "chunk.hpp"
+#include "types/chunk.hpp"
 #include "compiler.hpp"
-#include "stack.hpp"
-#include "util.hpp"
-#include "fmt.hpp"
-#include "debug.hpp"
+#include "data-structures/stack.hpp"
+#include "util/util.hpp"
+#include "util/fmt.hpp"
+#include "util/debug.hpp"
 
 /*
  * TODO:
@@ -91,10 +91,14 @@ void run_file(const char *path)
 
 int main(int argc, char **argv)
 {
-    if(argc >= 2)
-        run_file(argv[1]);
-    else
-        repl();
+//    if(argc >= 2)
+//        run_file(argv[1]);
+//    else
+//        repl();
+
+    String str = String(std::string_view{"hello"});
+
+    fmt::print("{}\n", str.is(ObjectType::String));
     // print_tokens(argv[1]);
     // print_bytes(argv[1]);
 }

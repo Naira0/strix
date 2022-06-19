@@ -2,10 +2,10 @@
 #include <iostream>
 
 #include "vm.hpp"
-#include "chunk.hpp"
+#include "types/chunk.hpp"
 #include "compiler.hpp"
-#include "fmt.hpp"
-#include "debug.hpp"
+#include "util/fmt.hpp"
+#include "util/debug.hpp"
 
 #define BINARY_OP(op)               \
     do                              \
@@ -153,8 +153,6 @@ InterpretResult VM::run()
 
             case Cmp:
             {
-//                Value b = m_stack.pop();
-//                Value a = m_stack.pop();
                 const auto &[a, b] = m_stack.top_two();
 
                 m_stack.emplace(a == b);

@@ -3,9 +3,9 @@
 
 #include "compiler.hpp"
 #include "scanner.hpp"
-#include "fmt.hpp"
-#include "object.hpp"
-#include "debug.hpp"
+#include "util/fmt.hpp"
+#include "types/object.hpp"
+#include "util/debug.hpp"
 
 bool Compiler::compile()
 {
@@ -188,7 +188,6 @@ void Compiler::fstring()
     while(!check(TokenType::FStringEnd))
     {
         expression();
-
         emit_cache();
 
         if(m_previous_token.type != TokenType::String)

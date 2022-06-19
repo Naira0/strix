@@ -10,8 +10,8 @@
 #include <utility>
 #include <sstream>
 
-#include "token.hpp"
-#include "value.hpp"
+#include "../types/token.hpp"
+#include "../value.hpp"
 
 namespace fmt
 {

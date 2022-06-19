@@ -4,7 +4,7 @@
 #include <vector>
 #include <list>
 
-#include "value.hpp"
+#include "../value.hpp"
 
 #define FOREACH_OPCODES(e)  \
     e(Constant)             \

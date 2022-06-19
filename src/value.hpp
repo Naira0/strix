@@ -4,8 +4,8 @@
 #include <cstddef>
 #include <string>
 
-#include "object.hpp"
-#include "util.hpp"
+#include "types/object.hpp"
+#include "util/util.hpp"
 
 enum class ValueType : uint8_t
 {

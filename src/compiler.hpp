@@ -4,9 +4,9 @@
 #include <array>
 #include <variant>
 
-#include "chunk.hpp"
+#include "types/chunk.hpp"
 #include "scanner.hpp"
-#include "token.hpp"
+#include "types/token.hpp"
 
 #define DEBUG_TOKENS false
 

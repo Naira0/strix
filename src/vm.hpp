@@ -5,8 +5,8 @@
 #include <unordered_map>
 #include <array>
 
-#include "chunk.hpp"
-#include "stack.hpp"
+#include "types/chunk.hpp"
+#include "data-structures/stack.hpp"
 
 #define DEBUG_TRACE true
 

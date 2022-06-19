@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "chunk.hpp"
+#include "../types/chunk.hpp"
 #include "debug.hpp"
 #include "fmt.hpp"
 

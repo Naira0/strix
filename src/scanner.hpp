@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string_view>
 
-#include "token.hpp"
+#include "types/token.hpp"
 
 class Scanner
 {

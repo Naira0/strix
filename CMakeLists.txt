@@ -6,14 +6,14 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -Ot")
 
 add_executable(strix
         src/main.cpp
-        src/chunk.hpp
-        src/debug.cpp src/debug.hpp
+        src/types/chunk.hpp
+        src/util/debug.cpp src/util/debug.hpp
         src/vm.cpp src/vm.hpp
         src/compiler.cpp src/compiler.hpp
         src/scanner.cpp src/scanner.hpp
-        src/util.hpp src/util.cpp
+        src/util/util.hpp src/util/util.cpp
         src/value.hpp src/value.cpp
-        src/stack.hpp
-        src/token.hpp
-        src/fmt.hpp
-        src/object.hpp src/object.cpp)
+        src/data-structures/stack.hpp
+        src/types/token.hpp
+        src/util/fmt.hpp
+        src/types/object.hpp src/objects/function.hpp src/objects/string.cpp src/objects/string.hpp)

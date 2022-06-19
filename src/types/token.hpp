@@ -4,7 +4,7 @@
 #include <string_view>
 #include <ostream>
 
-#include "util.hpp"
+#include "../util/util.hpp"
 
 #define FOREACH_TOKENTYPE(e) \
     e(LeftParen)             \
