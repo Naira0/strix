@@ -557,7 +557,7 @@ void Compiler::switch_stmt()
 
     // for all the exit jumps after the end of every branch
     std::vector<size_t> jmp_table;
-    bool default_defined = false;
+    int default_label = -1;
 
     while(!check(TokenType::RightBrace) && !check(TokenType::Eof))
     {
@@ -566,14 +566,23 @@ void Compiler::switch_stmt()
         {
             consume(TokenType::Colon, "expected token ':' after case value");
 
-            if(default_defined)
+            if(default_label != -1)
                 return error("default label has been previously defined");
 
-            default_defined = true;
+            // jumps past default label
+            size_t jmp = emit_jmp(OpCode::Jump);
+
+            default_label = m_chunk.bytes.size()-1;
+
+            // pops switch value
+            emit_bytes(OpCode::Pop);
 
             statement();
 
+            // jumps out of switch statement
             jmp_table.push_back(emit_jmp(OpCode::Jump));
+
+            patch_jmp(jmp);
 
             continue;
         }
@@ -591,6 +600,7 @@ void Compiler::switch_stmt()
         // body
         statement();
 
+        // jumps out of switch statement
         jmp_table.push_back(emit_jmp(OpCode::Jump));
 
         patch_jmp(jmp);
@@ -598,6 +608,9 @@ void Compiler::switch_stmt()
         // pops case value
         emit_bytes(OpCode::Pop);
     }
+
+    if(default_label != -1)
+        emit_rollback(default_label);
 
     for(size_t jmp : jmp_table)
         patch_jmp(jmp);

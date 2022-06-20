@@ -150,7 +150,7 @@ InterpretResult VM::run()
             case False: m_stack.emplace(false);   break;
             case Nil:   m_stack.emplace(nullptr); break;
 
-            case Pop:   m_stack.pop(); break;
+            case Pop:   if(!m_stack.empty()) m_stack.pop(); break;
 
             case Cmp:
             {
