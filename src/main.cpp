@@ -88,6 +88,7 @@ void run_file(const char *path)
     InterpretResult result = vm.interpret(contents);
 }
 
+
 int main(int argc, char **argv)
 {
     if(argc >= 2)

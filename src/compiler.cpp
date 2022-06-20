@@ -557,6 +557,7 @@ void Compiler::switch_stmt()
 
     // for all the exit jumps after the end of every branch
     std::vector<size_t> jmp_table;
+    bool default_defined = false;
 
     while(!check(TokenType::RightBrace) && !check(TokenType::Eof))
     {
@@ -565,12 +566,16 @@ void Compiler::switch_stmt()
         {
             consume(TokenType::Colon, "expected token ':' after case value");
 
+            if(default_defined)
+                return error("default label has been previously defined");
+
+            default_defined = true;
+
             statement();
 
-            if(!check(TokenType::RightBrace))
-                return error("default label must be the last case in switch statement");
+            jmp_table.push_back(emit_jmp(OpCode::Jump));
 
-            break;
+            continue;
         }
 
         // case value
@@ -734,7 +739,11 @@ void Compiler::declaration()
     if(match(TokenType::Var) || match(TokenType::Const))
         var_declaration(true);
     else
+    {
+//        if(m_scope_depth == 0)
+//            return error("Only declarations are allowed at the global scope");
         statement();
+    }
 
     if(m_panic_mode)
         synchronize();

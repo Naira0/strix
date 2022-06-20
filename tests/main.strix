@@ -1,9 +1,14 @@
 
-const start = 0, end = 10
+const value = 4
 
-print f"start: {start} end: {end}"
+switch value
+{
+    1: print "one"
+    2: print "two"
+    default: print "above three"
+    3: print "three"
+}
 
-for i in start..=end
-    print i
+print "outer"
 
 
