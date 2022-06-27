@@ -154,7 +154,8 @@ InterpretResult VM::run()
 
             case Cmp:
             {
-                const auto &[a, b] = m_stack.top_two();
+                Value b = m_stack.pop();
+                Value a = m_stack.pop();
 
                 m_stack.emplace(a == b);
 

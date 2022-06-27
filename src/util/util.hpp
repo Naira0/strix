@@ -1,9 +1,12 @@
 #pragma once
 
-// a scuffed utility to generate enum strings dynamically
+// a scuffed utility to generate enum strings
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
+
+// for converting op code enums to labels for computed gotos
+#define GENERATE_GOTO(OPCODE) &&OPCODE,
 
 #include <string>
 #include <fstream>

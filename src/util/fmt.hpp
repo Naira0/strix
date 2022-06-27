@@ -12,6 +12,7 @@
 
 #include "../types/token.hpp"
 #include "../value.hpp"
+#include "../io.hpp"
 
 namespace fmt
 {
@@ -115,7 +116,7 @@ namespace fmt
     std::string format(std::string_view fmt, A&&... a)
     {
         if constexpr(sizeof...(a) == 0)
-            return fmt.data();
+            return std::string{fmt};
 
         std::string buffer;
 
@@ -149,9 +150,10 @@ namespace fmt
     }
 
     template<typename... A>
-    inline int print(std::string_view fmt, A&&... a)
+    inline void print(std::string_view fmt, A&&... a)
     {
-        return std::printf(format(fmt, std::forward<A>(a)...).data());
+        mio::print(format(fmt, std::forward<A>(a)...));
+        //return std::printf(format(fmt, std::forward<A>(a)...).data());
     }
 
     template<typename... A>

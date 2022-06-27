@@ -31,33 +31,6 @@ enum class ParseState : uint8_t
     FString,
 };
 
-
-struct Cache
-{
-    enum class Type : uint8_t { Var, Value };
-
-    struct Item
-    {
-        Type type;
-        std::string_view lexeme;
-        Value value;
-    };
-
-    std::vector<Item> items;
-
-    void set(Value &&value)
-    {
-        items.emplace_back(Type::Value, "", std::forward<Value>(value));
-    }
-
-    Item get()
-    {
-        Item value = std::move(items.back());
-        items.pop_back();
-        return value;
-    }
-};
-
 class Compiler
 {
 public:
@@ -70,6 +43,9 @@ public:
     bool compile();
 
 private:
+
+    friend class Cache;
+
     Scanner m_scanner;
 
     Token m_previous_token;
@@ -108,8 +84,6 @@ private:
     // in the second its the index of the byte that must be updated in the chunk
     std::vector<std::vector<size_t>> m_loop_jmps;
 
-    Cache m_cache;
-
     typedef void(Compiler::*ParseFN)();
 
     struct ParseRule
@@ -140,14 +114,6 @@ private:
     void patch_jmp(size_t offset);
 
     void emit_rollback(size_t start);
-
-    bool emit_cache();
-
-    bool is_known(const Cache::Item &item) const;
-
-    bool is_known() const;
-
-    bool is_two_known() const;
 
     void number();
 

@@ -114,53 +114,6 @@ void Compiler::emit_rollback(size_t start)
     m_chunk.set(OpCode::RollBack, Value(amount), m_current_token.line);
 }
 
-bool Compiler::emit_cache()
-{
-    if(m_cache.items.empty())
-        return false;
-
-    Value value = m_cache.get().value;
-
-    emit_constant(std::move(value));
-
-    return true;
-}
-
-bool Compiler::is_known() const
-{
-    if(m_cache.items.empty())
-        return false;
-    const Cache::Item &item = m_cache.items.back();
-    return is_known(item);
-}
-
-bool Compiler::is_two_known() const
-{
-    if(m_cache.items.size() < 2)
-        return false;
-    const auto &item1 = m_cache.items.back();
-    const auto &item2 = m_cache.items.end()-1;
-    return is_known(item1) && is_known(*item2);
-}
-
-bool Compiler::is_known(const Cache::Item &item) const
-{
-    if(item.type == Cache::Type::Value)
-        return true;
-
-    int depth = resolve_var(item.lexeme);
-
-    if(depth != -1 && m_variables[depth].contains(item.lexeme))
-    {
-        Variable var = m_variables[depth].at(item.lexeme);
-
-        if(var.value_known)
-            return true;
-    }
-
-    return false;
-}
-
 inline void Compiler::number()
 {
     double value;
@@ -169,15 +122,15 @@ inline void Compiler::number()
 
     std::from_chars(lexeme.data(), lexeme.data()+lexeme.size(), value);
 
-    m_cache.set(Value(value));
+    m_chunk.set_constant(Value(value), m_previous_token.line);
 }
 
 inline void Compiler::string()
 {
-    if(String::intern_strings.contains(m_current_token.lexeme))
-        return;
+//    if(String::intern_strings.contains(m_current_token.lexeme))
+//        return;
 
-    m_cache.set(new String(m_previous_token.lexeme));
+    m_chunk.set_constant(new String(m_previous_token.lexeme), m_previous_token.line);
 }
 
 void Compiler::fstring()
@@ -189,7 +142,6 @@ void Compiler::fstring()
     while(!check(TokenType::FStringEnd))
     {
         expression();
-        emit_cache();
 
         if(m_previous_token.type != TokenType::String)
             emit_bytes(OpCode::ToString);
@@ -220,40 +172,6 @@ inline void Compiler::binary()
 
     parse_precedence((Precedence)((uint8_t)rule.precedence+1));
 
-    if(is_two_known())
-    {
-        auto b = m_cache.get().value;
-        auto a = m_cache.get().value;
-
-        try
-        {
-            switch(operator_type)
-            {
-                case TokenType::EqualEqual:   return m_cache.set(Value(a == b));
-                case TokenType::Greater:      return m_cache.set(Value(a > b));
-                case TokenType::GreaterEqual: return m_cache.set(Value(a >= b));
-                case TokenType::Less:         return m_cache.set(Value(a < b));
-                case TokenType::LessEqual:    return m_cache.set(Value(a <= b));
-                case TokenType::Plus:         return m_cache.set(a + b);
-                case TokenType::Minus:        return m_cache.set(a - b);
-                case TokenType::Star:         return m_cache.set(a * b);
-                case TokenType::Caret:        return m_cache.set(a.power(b));
-                case TokenType::Percent:      return m_cache.set(a.mod(b));
-                case TokenType::Slash:        return m_cache.set(a / b);
-                case TokenType::Or:           return m_cache.set(Value(!a.is_falsy() || !b.is_falsy()));
-                case TokenType::And:          return m_cache.set(Value(!a.is_falsy() && !b.is_falsy()));
-                default: return;
-            }
-        }
-        catch(std::exception &e)
-        {
-            return error(e.what());
-        }
-    }
-
-    emit_cache();
-    emit_cache();
-
     switch(operator_type)
     {
         case TokenType::BangEqual:    return emit_bytes(OpCode::Cmp, OpCode::Not);
@@ -282,26 +200,6 @@ void Compiler::unary()
 
     parse_precedence(Precedence::Unary);
 
-    if(is_known())
-    {
-        Value value = m_cache.get().value;
-
-        switch(operator_type)
-        {
-            case TokenType::Minus:
-            {
-                if(value.type != ValueType::Number)
-                    return error("negation value must be an integral type");
-
-                value.as.number = -value.as.number;
-
-                return m_cache.set(std::move(value));
-            }
-            case TokenType::Bang: return m_cache.set(Value(value.is_falsy()));
-            default: return;
-        }
-    }
-
     switch(operator_type)
     {
         case TokenType::Minus: return emit_bytes(OpCode::Negate);
@@ -314,9 +212,9 @@ inline void Compiler::literal()
 {
     switch(m_previous_token.type)
     {
-        case TokenType::True:  return m_cache.set(Value(true));
-        case TokenType::False: return m_cache.set(Value(false));
-        case TokenType::Nil:   return m_cache.set(Value(nullptr));
+        case TokenType::True:  return emit_bytes(OpCode::True);
+        case TokenType::False: return emit_bytes(OpCode::False);
+        case TokenType::Nil:   return emit_bytes(OpCode::Nil);
         default: return;
     }
 }
@@ -347,7 +245,6 @@ void Compiler::variable()
     if(m_can_assign && match(Equal))
     {
         expression();
-        emit_cache();
         op = OpCode::SetMem;
     }
     else if(m_current_token.type > Star && m_current_token.type < Caret)
@@ -398,10 +295,7 @@ OpCode Compiler::mod_assignable(Variable var, bool &get_mem)
         m_chunk.set(OpCode::GetMem, Value(var.index), m_previous_token.line);
     }
     else
-    {
         expression();
-        emit_cache();
-    }
 
     return op;
 }
@@ -477,7 +371,6 @@ void Compiler::continue_break_stmt()
 void Compiler::if_stmt()
 {
     expression();
-    emit_cache();
 
     size_t if_jmp = emit_jmp(OpCode::Jif);
 
@@ -496,14 +389,12 @@ void Compiler::if_stmt()
 void Compiler::if_expr()
 {
     expression();
-    emit_cache();
 
     size_t if_jmp = emit_jmp(OpCode::Jif);
 
     consume(TokenType::Do, "expected do keyword after if condition");
 
     expression();
-    emit_cache();
 
     size_t else_jmp = emit_jmp(OpCode::Jump);
 
@@ -512,8 +403,6 @@ void Compiler::if_expr()
     consume(TokenType::Else, "must have a matching else with an if expression");
 
     expression();
-    emit_cache();
-
 
     patch_jmp(else_jmp);
 }
@@ -526,7 +415,6 @@ void Compiler::while_stmt()
     m_loop_starts[m_loop_jmps.size()-1] = start;
 
     expression();
-    emit_cache();
 
     size_t jmp = emit_jmp(OpCode::Jif);
 
@@ -550,8 +438,9 @@ void Compiler::switch_stmt()
     begin_scope();
 
     // switch value
+    size_t value_jmp = m_chunk.bytes.size()-1;
+
     expression();
-    emit_cache();
 
     consume(TokenType::LeftBrace, "expected token '{' after switch value");
 
@@ -589,7 +478,6 @@ void Compiler::switch_stmt()
 
         // case value
         expression();
-        emit_cache();
 
         consume(TokenType::Colon, "expected token ':' after case value");
 
@@ -645,7 +533,6 @@ void Compiler::for_stmt()
             index = var.index;
 
             expression();
-            emit_cache();
 
             set_var(var, identifier);
 
@@ -663,7 +550,6 @@ void Compiler::for_stmt()
 
             // gets end range
             expression();
-            emit_cache();
 
             // condition
             if(inclusive)
@@ -681,10 +567,7 @@ void Compiler::for_stmt()
             var_declaration(false);
     }
     else
-    {
         expression();
-        emit_cache();
-    }
 
 #define CONSUME consume(TokenType::SemiColon, "expected ';'");
 
@@ -695,7 +578,6 @@ void Compiler::for_stmt()
     // condition clause
 
     expression();
-    emit_cache();
 
     m_loop_starts[m_loop_jmps.size()-1] = m_chunk.bytes.size();
 
@@ -708,7 +590,6 @@ void Compiler::for_stmt()
     inc_start = m_chunk.bytes.size()-1;
 
     expression();
-    emit_cache();
 
     patch_jmp(body_jmp);
 
@@ -782,11 +663,6 @@ void Compiler::var_declaration(bool consume_identifier = true)
     if(match(TokenType::Equal))
     {
         expression();
-
-        if(is_known())
-            var.value_known = true;
-
-        emit_cache();
     }
     else
     {
@@ -804,7 +680,7 @@ void Compiler::var_declaration(bool consume_identifier = true)
 
     set_var(var, var_name);
 
-    if(match(TokenType::Comma))
+    if(match(TokenType::Comma) && check(TokenType::Identifier))
         var_declaration();
 }
 
@@ -847,7 +723,6 @@ void Compiler::synchronize()
 inline void Compiler::print_stmt()
 {
     expression();
-    emit_cache();
     emit_bytes(OpCode::Print);
 }
 
