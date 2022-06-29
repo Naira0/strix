@@ -77,6 +77,7 @@ private:
 
     // counter for data index that mirrors the vms arrays
     uint16_t m_data_index = 0;
+    uint16_t m_cache_index = 0;
 
     // elements are the start of the loop at the current loop depth
     std::array<size_t, 50> m_loop_starts;

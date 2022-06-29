@@ -32,6 +32,8 @@
     e(And)                  \
     e(Print)                \
     e(LoadAddr)             \
+    e(SetCache)             \
+    e(LoadCache)            \
     e(TypeCmp)              \
     e(Jif)                  \
     e(Jump)                 \

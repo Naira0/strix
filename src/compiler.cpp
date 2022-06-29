@@ -127,8 +127,8 @@ inline void Compiler::number()
 
 inline void Compiler::string()
 {
-//    if(String::intern_strings.contains(m_current_token.lexeme))
-//        return;
+    if(String::intern_strings.contains(m_current_token.lexeme))
+        return;
 
     m_chunk.set_constant(new String(m_previous_token.lexeme), m_previous_token.line);
 }
@@ -438,14 +438,17 @@ void Compiler::switch_stmt()
     begin_scope();
 
     // switch value
-    size_t value_jmp = m_chunk.bytes.size()-1;
-
     expression();
+
+    uint16_t cache_index = m_cache_index++;
+
+    m_chunk.set(OpCode::SetCache, Value(cache_index), m_previous_token.line);
 
     consume(TokenType::LeftBrace, "expected token '{' after switch value");
 
     // for all the exit jumps after the end of every branch
     std::vector<size_t> jmp_table;
+
     int default_label = -1;
 
     while(!check(TokenType::RightBrace) && !check(TokenType::Eof))
@@ -458,13 +461,10 @@ void Compiler::switch_stmt()
             if(default_label != -1)
                 return error("default label has been previously defined");
 
-            // jumps past default label
+            // jumps past default label body
             size_t jmp = emit_jmp(OpCode::Jump);
 
-            default_label = m_chunk.bytes.size()-1;
-
-            // pops switch value
-            emit_bytes(OpCode::Pop);
+            default_label = m_chunk.bytes.size()-2;
 
             statement();
 
@@ -475,6 +475,8 @@ void Compiler::switch_stmt()
 
             continue;
         }
+
+        m_chunk.set(OpCode::LoadCache, Value(cache_index), m_previous_token.line);
 
         // case value
         expression();
@@ -492,9 +494,6 @@ void Compiler::switch_stmt()
         jmp_table.push_back(emit_jmp(OpCode::Jump));
 
         patch_jmp(jmp);
-
-        // pops case value
-        emit_bytes(OpCode::Pop);
     }
 
     if(default_label != -1)
@@ -502,9 +501,6 @@ void Compiler::switch_stmt()
 
     for(size_t jmp : jmp_table)
         patch_jmp(jmp);
-
-    // pops switch value
-    emit_bytes(OpCode::Pop);
 
     end_scope();
     consume(TokenType::RightBrace, "expected token '}' at the end of switch statement");
