@@ -1,6 +1,6 @@
 # Strix
 
-![](https://imgur.com/lcsaoGz)
+![](banner.png)
 
 A high level interpreted programming language.
 
