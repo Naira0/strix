@@ -9,9 +9,11 @@
 #define GENERATE_GOTO(OPCODE) &&OPCODE,
 
 #include <string>
-#include <fstream>
+#include <optional>
+#include <filesystem>
+#include <concepts>
 
-std::string read_file(const char *path);
+std::optional<std::string> read_file(std::filesystem::path &&path);
 
 /*
  * converts a double to a precise string representation removing trailing zeros
@@ -19,3 +21,15 @@ std::string read_file(const char *path);
  * than my function so i opted to stick with this.
  */
 std::string number_str(double value);
+
+template<std::integral T>
+inline T max_of(T t)
+{
+    return std::numeric_limits<T>::max();
+}
+
+template<std::integral T>
+inline T min_of(T t)
+{
+    return std::numeric_limits<T>::minx();
+}

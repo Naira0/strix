@@ -4,22 +4,35 @@
 #include "compiler.hpp"
 #include "scanner.hpp"
 #include "util/fmt.hpp"
-#include "types/object.hpp"
 #include "util/debug.hpp"
 #include "objects/string.hpp"
+#include "objects/tuple.hpp"
 
-bool Compiler::compile()
+std::optional<Function> Compiler::compile()
 {
-    m_had_error = false;
-
     advance();
 
-    while(!match(TokenType::Eof))
+    while(!match(TokenType::Eof) && !m_had_error)
         declaration();
+
+    if(m_had_error)
+        return std::nullopt;
+
+    // call main here
+
+    if(m_entry_fn.name == "main")
+    {
+        emit_byte(OpCode::Constant, new Function(std::move(m_entry_fn)));
+        emit_byte(OpCode::Call, 0.0);
+    }
 
     emit_bytes(OpCode::Return);
 
-    return !m_had_error;
+    Function fn("static chunk");
+
+    fn.chunk = std::move(m_static_chunk);
+
+    return std::move(fn);
 }
 
 void Compiler::advance()
@@ -86,22 +99,30 @@ inline Compiler::ParseRule Compiler::get_rule(TokenType kind) const
 template<typename ...A>
 inline void Compiler::emit_bytes(A ...a)
 {
-    (m_chunk.bytes.emplace_back(a, m_current_token.line), ...);
+    (current_chunk().bytes.emplace_back(a, m_current_token.line), ...);
+}
+
+template<typename T>
+void Compiler::emit_byte(OpCode code, T &&value)
+{
+    static_assert(std::is_constructible_v<Value, T>, "wrong type for value");
+
+    current_chunk().set(code, std::forward<Value>(Value(value)), m_previous_token.line);
 }
 
 size_t Compiler::emit_jmp(OpCode instruction)
 {
-    auto &chunk = m_chunk;
+    auto &chunk = current_chunk();
 
-    chunk.set(instruction, Value(0.0), m_previous_token.line);
+    emit_byte(instruction, 0.0);
 
     return chunk.bytes.size() - 1;
 }
 
 void Compiler::patch_jmp(size_t offset)
 {
-    auto &bytes = m_chunk.bytes;
-    auto &value = m_chunk.constants[bytes[offset].constant];
+    auto &bytes = current_chunk().bytes;
+    auto &value = current_chunk().constants[bytes[offset].constant];
 
     double jmp = bytes.size() - offset - 1;
 
@@ -110,8 +131,8 @@ void Compiler::patch_jmp(size_t offset)
 
 void Compiler::emit_rollback(size_t start)
 {
-    double amount = m_chunk.bytes.size() - start - 1;
-    m_chunk.set(OpCode::RollBack, Value(amount), m_current_token.line);
+    double amount = current_chunk().bytes.size() - start - 1;
+    emit_byte(OpCode::RollBack, amount);
 }
 
 inline void Compiler::number()
@@ -122,7 +143,7 @@ inline void Compiler::number()
 
     std::from_chars(lexeme.data(), lexeme.data()+lexeme.size(), value);
 
-    m_chunk.set_constant(Value(value), m_previous_token.line);
+    emit_byte(OpCode::Constant, value);
 }
 
 inline void Compiler::string()
@@ -130,14 +151,14 @@ inline void Compiler::string()
     if(String::intern_strings.contains(m_current_token.lexeme))
         return;
 
-    m_chunk.set_constant(new String(m_previous_token.lexeme), m_previous_token.line);
+    emit_byte(OpCode::Constant, new String(m_previous_token.lexeme));
 }
 
 void Compiler::fstring()
 {
     m_state = ParseState::FString;
 
-    emit_constant(new String(std::string_view{""}));
+    emit_byte(OpCode::Constant, new String(std::string_view{""}));
 
     while(!check(TokenType::FStringEnd))
     {
@@ -152,11 +173,6 @@ void Compiler::fstring()
     m_state = ParseState::None;
 
     advance();
-}
-
-inline void Compiler::emit_constant(Value &&value)
-{
-    m_chunk.set_constant(std::forward<Value>(value), m_current_token.line);
 }
 
 inline void Compiler::grouping()
@@ -219,16 +235,40 @@ inline void Compiler::literal()
     }
 }
 
-void Compiler::variable()
+void Compiler::identifier()
 {
     std::string_view identifier = m_previous_token.lexeme;
 
     int scope_depth = resolve_var(identifier);
 
     if(scope_depth == -1)
-        return error("use of undeclared variable");
+        return error("use of unknown identifier");
 
-    Variable var = m_variables[scope_depth][identifier];
+    Identifier id = m_identifiers[scope_depth][identifier];
+
+    if(match(TokenType::LeftParen))
+    {
+        uint16_t index = id_index(id);
+
+        uint8_t arg_count = _call();
+
+        emit_byte(OpCode::GetMem, index);
+
+        emit_byte(OpCode::Call, (double)arg_count);
+
+        return;
+    }
+
+    if(id.index() == 1)
+    {
+        FunctionData fn_data = std::get<FunctionData>(id);
+
+        emit_byte(OpCode::GetMem, fn_data.index);
+
+        return;
+    }
+
+    auto var = std::get<Variable>(id);
 
     Token previous_token = m_previous_token;
 
@@ -262,15 +302,12 @@ void Compiler::variable()
     if(!var.is_mutable && assigned)
         return error_at(previous_token, "constant variable cannot be reassigned");
 
-    m_chunk.set(op, Value(var.index), previous_token.line);
-
-    if(assigned)
-        var.type = m_chunk.constants.back().type;
+    emit_byte(op, var.index);
 
     if(extra != OpCode::NoOp)
         emit_bytes(extra);
     if(get_mem)
-        m_chunk.set(OpCode::GetMem, Value(var.index), previous_token.line);
+        emit_byte(OpCode::GetMem, var.index);
 }
 
 OpCode Compiler::mod_assignable(Variable var, bool &get_mem)
@@ -292,7 +329,7 @@ OpCode Compiler::mod_assignable(Variable var, bool &get_mem)
     {
         op = m_previous_token.type == PlusPlus ? OpCode::Increment : OpCode::Decrement;
         get_mem = false;
-        m_chunk.set(OpCode::GetMem, Value(var.index), m_previous_token.line);
+        emit_byte(OpCode::GetMem, var.index);
     }
     else
         expression();
@@ -303,7 +340,7 @@ OpCode Compiler::mod_assignable(Variable var, bool &get_mem)
 inline void Compiler::begin_scope()
 {
     m_scope_depth++;
-    m_variables.emplace_back();
+    m_identifiers.emplace_back();
 }
 
 void Compiler::end_scope()
@@ -312,8 +349,8 @@ void Compiler::end_scope()
         return;
 
     m_scope_depth--;
-    m_data_index -= m_variables[m_scope_depth].size();
-    m_variables.pop_back();
+    m_data_index -= m_identifiers[m_scope_depth].size();
+    m_identifiers.pop_back();
 }
 
 void Compiler::block()
@@ -327,6 +364,10 @@ void Compiler::block()
 void Compiler::statement()
 {
     using enum class TokenType;
+
+    // disallows top level statements
+//    if(m_scope_depth == 0)
+//        return error("statements cannot be used at a global scope");
 
     if(match(Print))
         print_stmt();
@@ -348,6 +389,8 @@ void Compiler::statement()
         return;
     else if(match(Continue) || match(Break))
         continue_break_stmt();
+    else if(match(Return))
+        return_stmt();
     else
         expression();
 }
@@ -411,7 +454,7 @@ void Compiler::while_stmt()
 {
     m_loop_jmps.emplace_back();
 
-    size_t start = m_chunk.bytes.size() - 2;
+    size_t start = current_chunk().bytes.size() - 2;
     m_loop_starts[m_loop_jmps.size()-1] = start;
 
     expression();
@@ -440,9 +483,9 @@ void Compiler::switch_stmt()
     // switch value
     expression();
 
-    uint16_t cache_index = m_cache_index++;
+    uint16_t data_index = m_data_index++;
 
-    m_chunk.set(OpCode::SetCache, Value(cache_index), m_previous_token.line);
+    emit_byte(OpCode::SetMem, data_index);
 
     consume(TokenType::LeftBrace, "expected token '{' after switch value");
 
@@ -464,7 +507,7 @@ void Compiler::switch_stmt()
             // jumps past default label body
             size_t jmp = emit_jmp(OpCode::Jump);
 
-            default_label = m_chunk.bytes.size()-2;
+            default_label = current_chunk().bytes.size()-2;
 
             statement();
 
@@ -476,7 +519,7 @@ void Compiler::switch_stmt()
             continue;
         }
 
-        m_chunk.set(OpCode::LoadCache, Value(cache_index), m_previous_token.line);
+        emit_byte(OpCode::GetMem, data_index);
 
         // case value
         expression();
@@ -515,7 +558,6 @@ void Compiler::for_stmt()
     size_t body_start, body_jmp, inc_start, exit_jmp;
     bool range_based = false;
     uint16_t index = -1;
-    size_t &line = m_previous_token.line;
 
     // initializer clause
     if(check(TokenType::Identifier))
@@ -530,19 +572,19 @@ void Compiler::for_stmt()
 
             expression();
 
-            set_var(var, identifier);
+            set_identifier(var, identifier);
 
-            m_chunk.set(OpCode::SetMem, Value(var.index), line);
+            emit_byte(OpCode::SetMem, var.index);
 
             consume(TokenType::DotDot, "expected token '..'");
 
             bool inclusive = match(TokenType::Equal);
 
-            body_start = m_chunk.bytes.size()-2;
+            body_start = current_chunk().bytes.size()-2;
             m_loop_starts[m_loop_jmps.size()-1] = body_start;
 
             // gets index
-            m_chunk.set(OpCode::GetMem, Value(var.index), line);
+            emit_byte(OpCode::GetMem, var.index);
 
             // gets end range
             expression();
@@ -560,7 +602,7 @@ void Compiler::for_stmt()
             goto body;
         }
         else
-            var_declaration(false);
+            var_declaration(false, true, true);
     }
     else
         expression();
@@ -569,13 +611,13 @@ void Compiler::for_stmt()
 
     CONSUME
 
-    body_start = m_chunk.bytes.size()-2;
+    body_start = current_chunk().bytes.size()-2;
 
     // condition clause
 
     expression();
 
-    m_loop_starts[m_loop_jmps.size()-1] = m_chunk.bytes.size();
+    m_loop_starts[m_loop_jmps.size()-1] = current_chunk().bytes.size();
 
     CONSUME
 
@@ -583,7 +625,7 @@ void Compiler::for_stmt()
 
     // increment clause
     body_jmp = emit_jmp(OpCode::Jump);
-    inc_start = m_chunk.bytes.size()-1;
+    inc_start = current_chunk().bytes.size()-1;
 
     expression();
 
@@ -602,7 +644,7 @@ body:
 
     if(range_based)
     {
-        m_chunk.set(OpCode::LoadAddr, Value(index), line);
+        emit_byte(OpCode::LoadAddr, index);
         emit_bytes(OpCode::Increment);
     }
 
@@ -624,10 +666,38 @@ body:
 #undef CONSUME
 }
 
+void Compiler::return_stmt()
+{
+    if(!match(TokenType::SemiColon))
+    {
+        uint8_t return_count{};
+
+        do
+        {
+            expression();
+
+            return_count++;
+
+            if(return_count > max_of(return_count))
+                return error("you cannot return more than 255 values");
+
+        } while(match(TokenType::Comma));
+
+        emit_byte(OpCode::Constant, new Tuple(return_count));
+        emit_bytes(OpCode::ConstructTuple);
+    }
+    else
+        emit_bytes(OpCode::Nil);
+
+    emit_bytes(OpCode::Return);
+}
+
 void Compiler::declaration()
 {
     if(match(TokenType::Var) || match(TokenType::Const))
-        var_declaration(true);
+        var_declaration(true, true, true);
+    else if(match(TokenType::Fn))
+        fn_declaration();
     else
     {
 //        if(m_scope_depth == 0)
@@ -639,9 +709,49 @@ void Compiler::declaration()
         synchronize();
 }
 
-void Compiler::var_declaration(bool consume_identifier = true)
+void Compiler::multiple_var_declaration(bool is_const)
+{
+    uint8_t id_count{};
+    uint16_t start_index = m_data_index;
+
+    do
+    {
+        consume(TokenType::Identifier, "expected identifier");
+
+        std::string_view var_name = m_previous_token.lexeme;
+
+        Variable var
+        {
+            .depth      = m_scope_depth,
+            .is_mutable = !is_const,
+            .index      = m_data_index++,
+        };
+
+        set_identifier(var, var_name);
+
+        id_count++;
+
+        if(id_count > max_of(id_count))
+            return error("you cannot declare more than 255 identifiers in a single declaration");
+
+    } while(match(TokenType::Comma));
+
+    consume(TokenType::RightParen, "expected token ')' after the end of multiple assignment");
+    consume(TokenType::Equal, "expected token '='");
+
+    expression();
+
+    emit_byte(OpCode::Constant, start_index);
+    emit_byte(OpCode::SetFromTuple, (uint16_t)id_count);
+}
+
+void Compiler::var_declaration(bool consume_identifier = true, bool expect_value = true, bool allow_many = true)
 {
     bool is_const = m_previous_token.type == TokenType::Const;
+
+    if(match(TokenType::LeftParen))
+        return multiple_var_declaration(is_const);
+
     uint16_t index = m_data_index++;
 
     Variable var
@@ -660,45 +770,115 @@ void Compiler::var_declaration(bool consume_identifier = true)
     {
         expression();
     }
-    else
+    else if(expect_value)
     {
         if(is_const)
             return error("constant variable must be initialized with a value");
 
-        emit_constant(Value(nullptr));
+        emit_bytes(OpCode::Nil);
     }
 
-    Value &value = m_chunk.constants.back();
-    var.value = &value;
-    var.type = value.type;
+    emit_byte(OpCode::SetMem, index);
 
-    m_chunk.set(OpCode::SetMem, Value(index), m_previous_token.line);
+    set_identifier(var, var_name);
 
-    set_var(var, var_name);
+    if(allow_many && match(TokenType::Comma))
+    {
+        if(!match(TokenType::Identifier))
+            return error("expected an identifier after token ','");
+        var_declaration(false, expect_value, allow_many);
+    }
+}
 
-    if(match(TokenType::Comma) && check(TokenType::Identifier))
-        var_declaration();
+// TODO recursion doesnt work because the function needs to be defined at the top but it needs to set it afterwards
+void Compiler::fn_declaration()
+{
+    consume(TokenType::Identifier, "expected identifier after fn keyword");
+
+    std::string_view id = m_previous_token.lexeme;
+
+    uint16_t index = m_data_index++;
+
+    bool is_main = id == "main";
+
+    Function fn = id;
+
+    m_function_stack.push_back(&fn);
+
+    begin_scope();
+
+    consume(TokenType::LeftParen, "expected token '(' after function identifier");
+
+    if(!check(TokenType::RightParen))
+    {
+        if(is_main)
+            return error("main function does not take any arguments");
+
+        do
+        {
+            var_declaration(true, false, false);
+
+            fn.param_count++;
+
+            if(fn.param_count > max_of(fn.param_count))
+                return error("exceeded maximum limit of parameters");
+
+        } while(!check(TokenType::RightParen));
+    }
+
+    consume(TokenType::RightParen, "expected token matching ')' token");
+
+    if(match(TokenType::Equal))
+        expression();
+    else
+    {
+        consume(TokenType::LeftBrace, "expected token '{' or '=' after function signature");
+
+        block();
+    }
+
+    emit_bytes(OpCode::Nil, OpCode::Return);
+
+    end_scope();
+
+    FunctionData fn_data =
+    {
+        .parem_count = fn.param_count,
+        .index = index,
+    };
+
+    set_identifier(fn_data, id);
+
+    m_function_stack.pop_back();
+
+    if(is_main)
+        m_entry_fn = std::move(fn);
+    else
+    {
+        emit_byte(OpCode::Constant, new Function(std::move(fn)));
+        emit_byte(OpCode::SetMem, index);
+    }
 }
 
 int Compiler::resolve_var(std::string_view identifier) const
 {
     for(int i = m_scope_depth; i >= 0; i--)
     {
-        if(m_variables[i].contains(identifier))
+        if(m_identifiers[i].contains(identifier))
             return i;
     }
 
     return -1;
 }
 
-void Compiler::set_var(Variable var, std::string_view var_name)
+void Compiler::set_identifier(Identifier id, std::string_view var_name)
 {
-    VarTable &vars = m_variables[m_scope_depth];
+    IDTable &vars = m_identifiers[m_scope_depth];
 
     if(vars.contains(var_name))
-        return error("variable is already defined in this scope");
+        return error("identifier is already defined in this scope");
 
-    vars.emplace(var_name, var);
+    vars.emplace(var_name, id);
 }
 
 void Compiler::synchronize()
@@ -735,7 +915,7 @@ inline void Compiler::parse_precedence(Precedence precedence)
 
     m_can_assign = can_assign;
 
-    call(prefix_rule);
+    (this->*prefix_rule)();
 
     if(match(TokenType::Eof))
         return;
@@ -749,16 +929,42 @@ inline void Compiler::parse_precedence(Precedence precedence)
         if(infix_rule == nullptr)
             return;
 
-        call(infix_rule);
+        (this->*infix_rule)();
     }
 
     if(can_assign && match(TokenType::Equal))
         error("invalid assignment");
 }
 
-inline void Compiler::call(Compiler::ParseFN fn)
+uint8_t Compiler::_call()
 {
-    (this->*fn)();
+    uint8_t arg_count{};
+
+    if(!check(TokenType::RightParen))
+    {
+        do
+        {
+            expression();
+            arg_count++;
+
+            if(arg_count > max_of(arg_count))
+            {
+                error("too many args");
+                return 0;
+            }
+
+        } while(match(TokenType::Comma));
+    }
+
+    consume(TokenType::RightParen, "expected matching ')'");
+
+    return arg_count;
+}
+
+inline void Compiler::call()
+{
+    uint8_t arg_count = _call();
+    emit_byte(OpCode::Call, (double)arg_count);
 }
 
 inline bool Compiler::check(TokenType type) const
@@ -789,9 +995,20 @@ Compiler::Variable Compiler::build_var(bool is_mutable)
     };
 }
 
+inline Chunk& Compiler::current_chunk()
+{
+    return m_function_stack.empty() ? m_static_chunk : m_function_stack.back()->chunk;
+}
+
+inline uint16_t Compiler::id_index(Compiler::Identifier id) const
+{
+    bool is_var = id.index() == 0;
+    return is_var ? std::get<Variable>(id).index : std::get<FunctionData>(id).index;
+}
+
 const Compiler::ParseRule Compiler::m_rules[] =
 {
-        {&Compiler::grouping, nullptr, Precedence::None}, //leftparen
+        {&Compiler::grouping, &Compiler::call, Precedence::Call}, //leftparen
         {nullptr,     nullptr,   Precedence::None}, // rightparen
         {nullptr,     nullptr,   Precedence::None}, // leftbrace
         {nullptr,     nullptr,   Precedence::None}, // rightbrace
@@ -820,7 +1037,7 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {nullptr, &Compiler::binary,   Precedence::Comparison}, // greaterequal
         {nullptr, &Compiler::binary,   Precedence::Comparison}, // less
         {nullptr, &Compiler::binary,   Precedence::Comparison}, // lessequal
-        {&Compiler::variable,     nullptr,   Precedence::None}, // identifier
+        {&Compiler::identifier,     nullptr,   Precedence::None}, // identifier
         {&Compiler::string,     nullptr,     Precedence::None}, // string
         {&Compiler::fstring, nullptr,        Precedence::None}, // fstringstart
         {nullptr, nullptr, Precedence::None}, // fstringend
@@ -852,3 +1069,8 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {nullptr,     nullptr,   Precedence::None}, // error
         {nullptr,     nullptr,   Precedence::None}, // eof
 };
+
+
+
+
+

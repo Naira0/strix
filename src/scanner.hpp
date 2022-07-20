@@ -34,12 +34,14 @@ private:
 
     std::string_view m_source;
 
+    Token m_last;
+
     bool m_in_fstring_brace = false;
 
-    Token build(TokenType kind) const;
+    Token build(TokenType kind);
 
     // skips non-token chars
-    void skip_chars();
+    bool skip_chars();
 
     Token scan_string();
     Token scan_number();

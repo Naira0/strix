@@ -5,6 +5,8 @@
 #include <windows.h>
 #elif defined(__linux__)
 #include <sys/syscall.h>
+#else
+#include <iostream>
 #endif
 
 #if defined(WIN32)

@@ -1,17 +1,37 @@
 #include "util.hpp"
 
 #include <iostream>
+#include <fstream>
+#include <sys/stat.h>
 
-std::string read_file(const char *path)
+inline size_t file_size(const char *filename)
+{
+    struct stat st;
+
+    stat(filename, &st);
+
+    return st.st_size;
+}
+
+std::optional<std::string> read_file(std::filesystem::path &&path)
 {
     std::fstream file(path, std::fstream::in);
 
     if(!file.is_open())
-        return {};
+        return std::nullopt;
 
-    return {
-            (std::istreambuf_iterator<char>(file)),
-            std::istreambuf_iterator<char>()};
+    std::string output;
+
+    size_t f_size = file_size(path.string().data());
+
+    output.reserve(f_size);
+
+    char c;
+
+    while((c = file.get()) != EOF)
+        output += c;
+
+    return output;
 }
 
 std::string number_str(double value)
@@ -45,3 +65,5 @@ std::string number_str(double value)
 
     return str;
 }
+
+

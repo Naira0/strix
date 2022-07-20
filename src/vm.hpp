@@ -6,11 +6,12 @@
 #include <array>
 
 #include "types/chunk.hpp"
-#include "data-structures/stack.hpp"
+#include "objects/function.hpp"
 
 #define DEBUG_TRACE false
 
 constexpr uint16_t MaxDataSize = sizeof(Value) * 1000;
+constexpr uint8_t MaxCallFrames = 255;
 
 enum class InterpretResult
 {
@@ -19,26 +20,37 @@ enum class InterpretResult
     RuntimeError
 };
 
+struct CallFrame
+{
+    Function  function{};
+    size_t    pc{};
+};
+
 class VM
 {
 public:
 
     InterpretResult interpret(std::string_view source);
 
+    VM()
+    {
+        m_stack.reserve(1000);
+    }
+
 private:
 
-    Chunk m_chunk;
-    size_t m_pc{};
+    std::array<CallFrame, MaxCallFrames> m_frames{};
+    uint8_t m_frame_cursor{};
 
-    Stack<Value> m_stack;
+    std::vector<Value> m_stack;
 
-    std::array<Value, MaxDataSize> m_data;
+    std::array<Value, MaxDataSize> m_data; // the vms internal memory used for various things (caching, variables, functions)
 
     InterpretResult m_state = InterpretResult::Ok;
 
     InterpretResult run();
 
-    void runtime_error(std::string_view message);
+    InterpretResult runtime_error(std::string_view message);
 
     static bool is_falsy(const Value &value);
 
@@ -46,10 +58,17 @@ private:
 
     bool same_operands() const;
 
-    bool match_last(ValueType type) const;
-
     bool match(ValueType type) const;
 
-    Value& from_addr(Bytes instruction);
+    Value pop();
+
+    std::pair<const Value&, const Value&> top_two() const;
+
+    Chunk &chunk();
+
+    void call(double arg_count);
+
+    void set_from_tuple(uint16_t id_count);
+
 };
 

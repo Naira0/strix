@@ -7,6 +7,7 @@
 #include "types/chunk.hpp"
 #include "scanner.hpp"
 #include "types/token.hpp"
+#include "objects/function.hpp"
 
 #define DEBUG_TOKENS false
 
@@ -34,28 +35,32 @@ enum class ParseState : uint8_t
 class Compiler
 {
 public:
-    Compiler(std::string_view source, Chunk &chunk)
+    Compiler(std::string_view source)
     :
-            m_scanner(source),
-            m_chunk(chunk)
+            m_scanner(source)
     {}
 
-    bool compile();
+    std::optional<Function> compile();
 
 private:
-
-    friend class Cache;
 
     Scanner m_scanner;
 
     Token m_previous_token;
     Token m_current_token;
 
-    Chunk &m_chunk;
+    // the top level chunk for statics (globals)
+    Chunk m_static_chunk;
 
     bool m_had_error = false;
     bool m_panic_mode = false;
     bool m_can_assign;
+
+    // used for program entry (main function) will be called at the end of the static chunk
+    Function m_entry_fn;
+
+    // used to determine which chunk the bytes will be written into
+    std::vector<Function*> m_function_stack;
 
     ParseState m_state = ParseState::None;
 
@@ -64,20 +69,24 @@ private:
         size_t depth;
         bool is_mutable;
         uint16_t index;
-        bool value_known;
-        Value *value;
-        ValueType type;
     };
 
-    using VarTable = std::unordered_map<std::string_view, Variable>;
+    struct FunctionData
+    {
+        uint8_t parem_count;
+        uint16_t index;
+    };
+
+    using Identifier = std::variant<Variable, FunctionData>;
+
+    using IDTable = std::unordered_map<std::string_view, Identifier>;
 
     // each index represents the current scope with 0 being global
-    std::vector<VarTable> m_variables { VarTable() };
+    std::vector<IDTable> m_identifiers { IDTable() };
     size_t m_scope_depth = 0;
 
     // counter for data index that mirrors the vms arrays
     uint16_t m_data_index = 0;
-    uint16_t m_cache_index = 0;
 
     // elements are the start of the loop at the current loop depth
     std::array<size_t, 50> m_loop_starts;
@@ -110,6 +119,9 @@ private:
     template<typename ...A>
     void emit_bytes(A ...a);
 
+    template<typename T>
+    void emit_byte(OpCode code, T &&value);
+
     size_t emit_jmp(OpCode instruction);
 
     void patch_jmp(size_t offset);
@@ -130,7 +142,7 @@ private:
 
     void literal();
 
-    void variable();
+    void identifier();
 
     OpCode mod_assignable(Variable var, bool &get_mem);
 
@@ -156,23 +168,29 @@ private:
 
     void for_stmt();
 
+    void return_stmt();
+
     void declaration();
 
-    void var_declaration(bool consume_identifier);
+    void multiple_var_declaration(bool is_const);
+
+    void var_declaration(bool consume_identifier, bool expect_value, bool allow_many);
+
+    void fn_declaration();
 
     int resolve_var(std::string_view identifier) const;
 
-    void set_var(Variable var, std::string_view var_name);
+    void set_identifier(Identifier id, std::string_view var_name);
 
     void synchronize();
-
-    void emit_constant(Value &&value);
 
     void parse_precedence(Precedence precedence);
 
     // the syntax for calling member function pointers is ugly enough where this method is justified
     // ie (this->*fn)(); doesnt seem so bad until you have it all over your code
-    void call(Compiler::ParseFN fn);
+    void call();
+
+    uint8_t _call();
 
     bool check(TokenType type) const;
 
@@ -182,4 +200,7 @@ private:
 
     Compiler::Variable build_var(bool is_mutable);
 
+    Chunk& current_chunk();
+
+    uint16_t id_index(Identifier id) const;
 };

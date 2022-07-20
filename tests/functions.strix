@@ -1,0 +1,58 @@
+
+fn add(a, b)
+{
+    return a + b
+}
+
+// single expression function. returns the expression
+fn _add(a, b) = a + b
+
+fn exit_early(condition)
+{
+    if !condition return
+
+    print "made it to the end!"
+}
+
+fn multiple_returns()
+{
+    return "some data", true
+}
+
+// this acts as a sort of default param system lua does it this way too so its good enough
+fn default_test(a, b)
+{
+    b = b or 2
+    print f"{a} {b}"
+}
+
+// the top level chunk will get executed first statically then it will call the main function
+// so these print functions will execute in the order they count to
+print "one"
+
+// main function is optional but will be called automatically if defined
+// it cannot however be called explicitly
+fn main()
+{
+    print "three"
+
+    print f"result {add(1, 5)}"
+
+    var (data, ok) = multiple_returns()
+
+    if ok print data
+
+    var x = 10
+
+    // local functions act as lambdas. they also support closures
+    fn local_fn() { print x }
+
+    local_fn()
+
+    // functions are first class
+    const func = local_fn
+
+    func()
+}
+
+print "two"

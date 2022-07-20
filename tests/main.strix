@@ -1,14 +1,10 @@
 
-const value = 2
-
-switch value
+fn test()
 {
-    1: print "one"
-    2: print "two"
-    default: print "above three"
-    3: print "three"
+    return 1, true
 }
 
-print "outer"
+var (x, y) = test()
 
-
+print x
+print y

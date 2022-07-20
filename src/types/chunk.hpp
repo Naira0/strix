@@ -10,6 +10,7 @@
     e(Constant)             \
     e(SetMem)               \
     e(GetMem)               \
+    e(SetFromTuple)         \
     e(ToString)             \
     e(True)                 \
     e(False)                \
@@ -32,12 +33,12 @@
     e(And)                  \
     e(Print)                \
     e(LoadAddr)             \
-    e(SetCache)             \
-    e(LoadCache)            \
+    e(ConstructTuple)       \
     e(TypeCmp)              \
     e(Jif)                  \
     e(Jump)                 \
     e(RollBack)             \
+    e(Call)                 \
     e(Return)               \
     e(NoOp)                 \
 
@@ -68,14 +69,6 @@ struct Chunk
 {
     std::vector<Bytes> bytes;
     std::vector<Value> constants;
-
-    inline void set_constant(Value &&value, uint32_t line)
-    {
-        constants.emplace_back(std::forward<Value>(value));
-        bytes.emplace_back(OpCode::Constant,
-                           constants.size()-1,
-                           line);
-    }
 
     inline void set(OpCode code, Value &&value, uint32_t line)
     {

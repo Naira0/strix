@@ -1,0 +1,45 @@
+
+// if statements
+
+const condition = true
+
+if condition
+    print "true"
+else
+    print "false"
+
+// ternary expression if statement
+print f"the value is {if condition do "true" else "false"}"
+
+// switch statement
+
+switch 2
+{
+    1: print "one"
+    2: print "two"
+    3: print "three"
+    default: print "above 3"
+}
+
+// loops
+
+for i = 0; i < 10
+    print i
+
+// range based
+
+for i in 0..10
+    print i
+
+// inclusive range
+
+for i in 0..=10
+    print i
+
+// while loop
+
+var i = 10
+
+while i-- > 0
+    print i
+

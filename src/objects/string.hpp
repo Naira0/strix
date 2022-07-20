@@ -43,7 +43,7 @@ struct String : Object
         return new String(std::move(*this));
     }
 
-    std::string to_string() override
+    std::string to_string() const override
     {
         if(!is_static)
             return data;

@@ -1,9 +1,9 @@
 
 #include <cctype>
 #include <unordered_map>
+#include <iostream>
 
 #include "scanner.hpp"
-#include <iostream>
 
 using enum TokenType;
 
@@ -37,11 +37,15 @@ static const std::unordered_map<std::string_view, TokenType> g_keywords =
 
 Token Scanner::scan_token()
 {
-    skip_chars();
+    // if the last token was a return and it found a new line its an indication that a terminator should be built
+    bool terminate = skip_chars();
 
     m_start = m_offset;
 
     char c = advance();
+
+    if(terminate)
+        return build(SemiColon);
 
     switch(c)
     {
@@ -98,6 +102,7 @@ Token Scanner::scan_token()
                 build_id: return scan_identifier();
             else
             {
+                std::cout << "char " << (int)c << std::endl;
                 error("unexpected char");
                 build(Error);
             }
@@ -191,7 +196,7 @@ Token Scanner::scan_identifier()
     return build(type);
 }
 
-void Scanner::skip_chars()
+bool Scanner::skip_chars()
 {
     char c;
 
@@ -207,6 +212,10 @@ void Scanner::skip_chars()
                 m_line++;
                 m_column = 1;
                 m_offset++;
+
+                if(m_last.type == Return)
+                    return true;
+
                 break;
             }
             case '/':
@@ -235,27 +244,31 @@ void Scanner::skip_chars()
                         error("multiline comment is not terminated");
                 }
                 else
-                    return;
+                    return false;
 
                 advance();
 
                 break;
             }
             default:
-                return;
+                return false;
         }
     }
 }
 
-inline Token Scanner::build(TokenType kind) const
+inline Token Scanner::build(TokenType kind)
 {
-    return
+    Token token =
     {
         .type   = kind,
         .lexeme = m_source.substr(m_start, m_offset - m_start),
         .line   = m_line,
         .column = m_column
     };
+
+    m_last = token;
+
+    return token;
 }
 
 inline bool Scanner::at_end() const

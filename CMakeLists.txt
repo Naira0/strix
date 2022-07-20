@@ -16,4 +16,4 @@ add_executable(strix
         src/data-structures/stack.hpp
         src/types/token.hpp
         src/util/fmt.hpp
-        src/types/object.hpp src/objects/function.hpp src/objects/string.cpp src/objects/string.hpp src/io.cpp src/io.hpp)
+        src/types/object.hpp src/objects/function.hpp src/objects/string.cpp src/objects/string.hpp src/io.cpp src/io.hpp src/objects/tuple.hpp)

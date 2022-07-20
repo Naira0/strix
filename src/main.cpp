@@ -4,7 +4,6 @@
 #include "vm.hpp"
 #include "types/chunk.hpp"
 #include "compiler.hpp"
-#include "data-structures/stack.hpp"
 #include "util/util.hpp"
 #include "util/fmt.hpp"
 #include "util/debug.hpp"
@@ -12,16 +11,18 @@
 /*
  * TODO:
  * add bitwise operators
- * break labels
  * string escaping
- * improve the constant folding implementation. make it so it can cache instructions as well as values
+ * multiple return values
  */
 
 void print_tokens(char *path)
 {
-    std::string contents = read_file(path);
+    auto contents = read_file(path);
 
-    Scanner scanner(contents);
+    if(!contents.has_value())
+        fmt::fatal("could not read input file");
+
+    Scanner scanner(contents.value());
 
     Token token;
 
@@ -48,9 +49,13 @@ void print_tokens(char *path)
 void print_bytes(const char *path)
 {
     Chunk chunk;
-    std::string contents = read_file(path);
 
-    Compiler compiler(contents, chunk);
+    auto contents = read_file(path);
+
+    if(!contents.has_value())
+        fmt::fatal("could not read input file");
+
+    Compiler compiler(contents.value());
 
     compiler.compile();
 
@@ -78,15 +83,16 @@ void repl()
 
 void run_file(const char *path)
 {
-    std::string contents = read_file(path);
+    auto contents = read_file(path);
 
-    if(contents.empty())
+    if(!contents.has_value())
         fmt::fatal("could not read input file");
 
     VM vm;
 
-    InterpretResult result = vm.interpret(contents);
+    InterpretResult result = vm.interpret(contents.value());
 }
+
 
 int main(int argc, char **argv)
 {
@@ -95,7 +101,6 @@ int main(int argc, char **argv)
     else
         repl();
 
-
-    // print_tokens(argv[1]);
+    //print_tokens(argv[1]);
     // print_bytes(argv[1]);
 }

@@ -11,6 +11,7 @@
 #define FOREACH_OBJTYPE(e)  \
          e(String)          \
          e(Function)        \
+         e(Tuple)           \
 
 
 enum class ObjectType : uint8_t
@@ -19,6 +20,7 @@ enum class ObjectType : uint8_t
 static const char *obj_type_str[] =
 { FOREACH_OBJTYPE(GENERATE_STRING) };
 
+// TODO add subscript support
 struct Object
 {
     virtual ~Object() = default;
@@ -26,7 +28,7 @@ struct Object
     virtual Object* clone() = 0;
     virtual Object* move() = 0;
 
-    virtual std::string to_string() = 0;
+    virtual std::string to_string() const = 0;
 
     virtual ObjectType type() const = 0;
 

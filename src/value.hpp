@@ -72,7 +72,9 @@ struct Value
     ~Value()
     {
         if(type == ValueType::Object)
+        {
             delete as.object;
+        }
     }
 
     Value& operator=(Value &&value) noexcept
