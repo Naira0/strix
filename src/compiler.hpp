@@ -176,7 +176,9 @@ private:
 
     void var_declaration(bool consume_identifier, bool expect_value, bool allow_many);
 
-    void fn_declaration();
+    void fn_declaration(bool anon_fn = false);
+
+    void anon_fn();
 
     int resolve_var(std::string_view identifier) const;
 

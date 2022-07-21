@@ -60,6 +60,8 @@ private:
 
     bool match(ValueType type) const;
 
+    bool is_tuple(Value &value) const;
+
     Value pop();
 
     std::pair<const Value&, const Value&> top_two() const;

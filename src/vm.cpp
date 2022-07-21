@@ -398,9 +398,16 @@ inline bool VM::same_operands(ValueType type) const
     return a.type == type && b.type == type;
 }
 
-bool VM::match(ValueType type) const
+inline bool VM::match(ValueType type) const
 {
     return m_stack.back().type == type;
+}
+
+inline bool VM::is_tuple(Value &value) const
+{
+    return
+    value.type != ValueType::Object ||
+    (value.type == ValueType::Object && value.as.object->type() != ObjectType::Tuple);
 }
 
 bool VM::same_operands() const
@@ -470,12 +477,12 @@ void VM::set_from_tuple(uint16_t id_count)
 
     Value top = pop();
 
-    if(top.type != ValueType::Object)
+    if(is_tuple(top))
     {
         m_data[start_index] = std::move(top);
 
-        for(uint8_t i = 0; i < id_count-1; i++)
-            m_data[start_index++] = Value(nullptr);
+        for(uint8_t i = 0; i < id_count; i++)
+            m_data[++start_index] = Value(nullptr);
 
         return;
     }
@@ -495,5 +502,7 @@ void VM::set_from_tuple(uint16_t id_count)
             m_data[start_index++] = Value(nullptr);
     }
 }
+
+
 
 

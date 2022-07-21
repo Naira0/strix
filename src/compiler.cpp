@@ -699,7 +699,7 @@ void Compiler::declaration()
     if(match(TokenType::Var) || match(TokenType::Const))
         var_declaration(true, true, true);
     else if(match(TokenType::Fn))
-        fn_declaration();
+        fn_declaration(false);
     else
     {
 //        if(m_scope_depth == 0)
@@ -793,11 +793,14 @@ void Compiler::var_declaration(bool consume_identifier = true, bool expect_value
 }
 
 // TODO recursion doesnt work because the function needs to be defined at the top but it needs to set it afterwards
-void Compiler::fn_declaration()
+void Compiler::fn_declaration(bool anon_fn)
 {
-    consume(TokenType::Identifier, "expected identifier after fn keyword");
+    bool is_named = !anon_fn;
 
-    std::string_view id = m_previous_token.lexeme;
+    if(is_named)
+        consume(TokenType::Identifier, "expected identifier after fn keyword");
+
+    std::string_view id = is_named ? m_previous_token.lexeme : "fn()";
 
     uint16_t index = m_data_index++;
 
@@ -843,6 +846,13 @@ void Compiler::fn_declaration()
 
     end_scope();
 
+    m_function_stack.pop_back();
+
+    if(!is_named)
+    {
+        return emit_byte(OpCode::Constant, new Function(std::move(fn)));
+    }
+
     FunctionData fn_data =
     {
         .parem_count = fn.param_count,
@@ -851,8 +861,6 @@ void Compiler::fn_declaration()
 
     set_identifier(fn_data, id);
 
-    m_function_stack.pop_back();
-
     if(is_main)
         m_entry_fn = std::move(fn);
     else
@@ -860,6 +868,11 @@ void Compiler::fn_declaration()
         emit_byte(OpCode::Constant, new Function(std::move(fn)));
         emit_byte(OpCode::SetMem, index);
     }
+}
+
+void Compiler::anon_fn()
+{
+    fn_declaration(true);
 }
 
 int Compiler::resolve_var(std::string_view identifier) const
@@ -1056,7 +1069,7 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {nullptr,     nullptr,   Precedence::None}, // obj
         {nullptr,     nullptr,   Precedence::None}, // for
         {&Compiler::if_expr,     nullptr,   Precedence::None}, // if
-        {nullptr,     nullptr,   Precedence::None}, // fn
+        {&Compiler::anon_fn,     nullptr,   Precedence::None}, // fn
         {nullptr,     nullptr,   Precedence::None}, // print
         {nullptr,     nullptr,   Precedence::None}, // return
         {nullptr,     nullptr,   Precedence::None}, // super
@@ -1071,6 +1084,8 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {nullptr,     nullptr,   Precedence::None}, // error
         {nullptr,     nullptr,   Precedence::None}, // eof
 };
+
+
 
 
 
