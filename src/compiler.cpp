@@ -18,9 +18,8 @@ std::optional<Function> Compiler::compile()
     if(m_had_error)
         return std::nullopt;
 
-    // call main here
-
-    if(m_entry_fn.name == "main")
+    // entry name would only be set if it is found so this should always be valid
+    if(!m_entry_fn.name.empty())
     {
         emit_byte(OpCode::Constant, new Function(std::move(m_entry_fn)));
         emit_byte(OpCode::Call, 0.0);
@@ -32,7 +31,7 @@ std::optional<Function> Compiler::compile()
 
     fn.chunk = std::move(m_static_chunk);
 
-    return std::move(fn);
+    return fn;
 }
 
 void Compiler::advance()
@@ -683,8 +682,11 @@ void Compiler::return_stmt()
 
         } while(match(TokenType::Comma));
 
-        emit_byte(OpCode::Constant, new Tuple(return_count));
-        emit_bytes(OpCode::ConstructTuple);
+        if(return_count > 1)
+        {
+            emit_byte(OpCode::Constant, new Tuple(return_count));
+            emit_bytes(OpCode::ConstructTuple);
+        }
     }
     else
         emit_bytes(OpCode::Nil);
@@ -816,7 +818,7 @@ void Compiler::fn_declaration()
 
         do
         {
-            var_declaration(true, false, false);
+            var_declaration(true, false, true);
 
             fn.param_count++;
 

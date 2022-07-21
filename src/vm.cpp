@@ -72,18 +72,20 @@ InterpretResult VM::run()
     fmt::print("instructions\n{}\n", CHUNK.bytes);
 #endif
 
+    CallFrame *frame  = &m_frames[m_frame_cursor];
+    size_t pc = frame->pc;
+
     while(true)
     {
         if(m_state != InterpretResult::Ok)
             return m_state;
 
-        CallFrame &frame  = m_frames[m_frame_cursor];
-        Bytes instruction = frame.function.chunk.bytes[frame.pc++];
+        Bytes instruction = frame->function.chunk.bytes[pc++];
 
-#define CONSTANT frame.function.chunk.constants[instruction.constant]
+#define CONSTANT frame->function.chunk.constants[instruction.constant]
 
 #if DEBUG_TRACE
-        disassemble_instruction(CHUNK, instruction, frame.pc);
+        disassemble_instruction(CHUNK, instruction, pc);
 #endif
         switch(instruction.code)
         {
@@ -283,7 +285,7 @@ InterpretResult VM::run()
                 size_t offset = CONSTANT.as.number;
 
                 if(is_falsy(pop()))
-                    frame.pc += offset;
+                    pc += offset;
 
                 break;
             }
@@ -291,7 +293,7 @@ InterpretResult VM::run()
             {
                 size_t offset = CONSTANT.as.number;
 
-                frame.pc += offset;
+                pc += offset;
 
                 break;
             }
@@ -299,7 +301,7 @@ InterpretResult VM::run()
             {
                 size_t offset = CONSTANT.as.number;
 
-                frame.pc -= offset;
+                pc -= offset;
 
                 break;
             }
@@ -308,7 +310,14 @@ InterpretResult VM::run()
             {
                 auto arg_count = CONSTANT.as.number;
 
+                m_frame_cursor++;
+
+                frame->pc = pc;
+
                 call(arg_count);
+
+                frame = &m_frames[m_frame_cursor];
+                pc = frame->pc;
 
                 break;
             }
@@ -348,10 +357,13 @@ InterpretResult VM::run()
 
             case Return:
             {
-                if(m_frame_cursor < 1)
+                if(m_frame_cursor <= 0)
                     return m_state;
 
-                m_frame_cursor--;
+                frame->pc = pc;
+
+                frame = &m_frames[--m_frame_cursor];
+                pc = frame->pc;
             }
         }
     }
@@ -435,10 +447,11 @@ void VM::call(double arg_count)
         return;
     }
 
-    CallFrame &new_frame = m_frames[++m_frame_cursor];
+    CallFrame &new_frame = m_frames[m_frame_cursor];
 
     new_frame.function = std::move(*fn);
     new_frame.pc = 0;
+
 
     uint8_t param_diff = fn->param_count - arg_count;
 

@@ -12,7 +12,8 @@
  * TODO:
  * add bitwise operators
  * string escaping
- * multiple return values
+ * anonymous functions
+ * multiple return values is very slow investigate why
  */
 
 void print_tokens(char *path)
