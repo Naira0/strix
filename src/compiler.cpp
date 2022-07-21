@@ -821,14 +821,14 @@ void Compiler::fn_declaration(bool anon_fn)
 
         do
         {
-            var_declaration(true, false, true);
+            var_declaration(true, false, false);
 
             fn.param_count++;
 
             if(fn.param_count > max_of(fn.param_count))
                 return error("exceeded maximum limit of parameters");
 
-        } while(!check(TokenType::RightParen));
+        } while(match(TokenType::Comma));
     }
 
     consume(TokenType::RightParen, "expected token matching ')' token");
@@ -848,6 +848,8 @@ void Compiler::fn_declaration(bool anon_fn)
 
     m_function_stack.pop_back();
 
+    fmt::print("params {}\n", fn.param_count);
+
     if(!is_named)
     {
         return emit_byte(OpCode::Constant, new Function(std::move(fn)));
@@ -855,7 +857,7 @@ void Compiler::fn_declaration(bool anon_fn)
 
     FunctionData fn_data =
     {
-        .parem_count = fn.param_count,
+        .param_count = fn.param_count,
         .index = index,
     };
 

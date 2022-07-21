@@ -73,7 +73,7 @@ private:
 
     struct FunctionData
     {
-        uint8_t parem_count;
+        uint8_t param_count;
         uint16_t index;
     };
 
