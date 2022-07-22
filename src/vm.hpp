@@ -8,6 +8,7 @@
 #include "types/chunk.hpp"
 #include "objects/function.hpp"
 
+
 #define DEBUG_TRACE false
 
 constexpr uint16_t MaxDataSize = sizeof(Value) * 1000;
@@ -34,10 +35,9 @@ public:
 
     VM()
     {
+
         m_stack.reserve(1000);
     }
-
-private:
 
     std::array<CallFrame, MaxCallFrames> m_frames{};
     uint8_t m_frame_cursor{};
@@ -71,6 +71,8 @@ private:
     void call(double arg_count);
 
     void set_from_tuple(uint16_t id_count);
+
+    void set_fn_params(uint8_t param_count, uint8_t arg_count);
 
 };
 

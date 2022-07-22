@@ -8,6 +8,7 @@
 #include "scanner.hpp"
 #include "types/token.hpp"
 #include "objects/function.hpp"
+#include "objects/native_function.hpp"
 
 #define DEBUG_TOKENS false
 
@@ -38,7 +39,15 @@ public:
     Compiler(std::string_view source)
     :
             m_scanner(source)
-    {}
+    {
+
+#define REGISTER(name, params, fn) m_identifiers[0][name] = NativeFunction(name, params, fn)
+
+        REGISTER("panic", 1, builtin::panic);
+        REGISTER("input", 1, builtin::input);
+
+#undef  REGISTER
+    }
 
     std::optional<Function> compile();
 
@@ -77,7 +86,7 @@ private:
         uint16_t index;
     };
 
-    using Identifier = std::variant<Variable, FunctionData>;
+    using Identifier = std::variant<Variable, FunctionData, NativeFunction>;
 
     using IDTable = std::unordered_map<std::string_view, Identifier>;
 
@@ -188,8 +197,6 @@ private:
 
     void parse_precedence(Precedence precedence);
 
-    // the syntax for calling member function pointers is ugly enough where this method is justified
-    // ie (this->*fn)(); doesnt seem so bad until you have it all over your code
     void call();
 
     uint8_t _call();

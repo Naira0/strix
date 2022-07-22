@@ -11,6 +11,7 @@
 #define FOREACH_OBJTYPE(e)  \
          e(String)          \
          e(Function)        \
+         e(NativeFunction)  \
          e(Tuple)           \
 
 

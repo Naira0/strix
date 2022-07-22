@@ -245,6 +245,20 @@ void Compiler::identifier()
 
     Identifier id = m_identifiers[scope_depth][identifier];
 
+
+    if(id.index() == 2)
+    {
+        match(TokenType::LeftParen);
+        uint8_t arg_count = _call();
+
+        auto native_fn = std::get<NativeFunction>(id);
+        emit_byte(OpCode::Constant, new NativeFunction(native_fn));
+
+        emit_byte(OpCode::Call, (double)arg_count);
+
+        return;
+    }
+
     if(match(TokenType::LeftParen))
     {
         uint16_t index = id_index(id);
@@ -847,8 +861,6 @@ void Compiler::fn_declaration(bool anon_fn)
     end_scope();
 
     m_function_stack.pop_back();
-
-    fmt::print("params {}\n", fn.param_count);
 
     if(!is_named)
     {

@@ -310,7 +310,7 @@ InterpretResult VM::run()
             {
                 auto arg_count = CONSTANT.as.number;
 
-                m_frame_cursor++;
+
 
                 frame->pc = pc;
 
@@ -373,7 +373,7 @@ InterpretResult VM::run()
 
 InterpretResult VM::runtime_error(std::string_view message)
 {
-    CallFrame frame   = m_frames[m_frame_cursor];
+    CallFrame frame   = m_frames[--m_frame_cursor];
     Bytes instruction = frame.function.chunk.bytes[frame.pc];
 
     fmt::eprint("[runtime error on line {}] {}",
@@ -446,6 +446,17 @@ void VM::call(double arg_count)
         return;
     }
 
+    if(top.as.object->type() == ObjectType::NativeFunction)
+    {
+        auto native = top.get<NativeFunction>();
+
+        set_fn_params(native->param_count, arg_count);
+
+        m_state = native->fn(*this);
+
+        return;
+    }
+
     auto fn = top.get<Function>();
 
     if(fn->type() != ObjectType::Function)
@@ -454,21 +465,12 @@ void VM::call(double arg_count)
         return;
     }
 
-    CallFrame &new_frame = m_frames[m_frame_cursor];
+    CallFrame &new_frame = m_frames[++m_frame_cursor];
 
     new_frame.function = std::move(*fn);
     new_frame.pc = 0;
 
-
-    uint8_t param_diff = fn->param_count - arg_count;
-
-    if(fn->param_count != arg_count)
-    {
-        for(uint8_t i = 0; i < param_diff; i++)
-            m_stack.emplace_back(nullptr);
-    }
-
-    std::reverse(m_stack.end()-arg_count-param_diff, m_stack.end());
+    set_fn_params(fn->param_count, arg_count);
 }
 
 void VM::set_from_tuple(uint16_t id_count)
@@ -501,6 +503,22 @@ void VM::set_from_tuple(uint16_t id_count)
         for(uint8_t i = 0; i < diff; i++)
             m_data[start_index++] = Value(nullptr);
     }
+}
+
+void VM::set_fn_params(uint8_t param_count, uint8_t arg_count)
+{
+    uint8_t param_diff = param_count - arg_count;
+
+    if(param_count != arg_count)
+    {
+        for(uint8_t i = 0; i < param_diff; i++)
+            m_stack.emplace_back(nullptr);
+    }
+
+    int8_t amount = arg_count-param_diff;
+
+    if(amount > 1)
+        std::reverse(m_stack.begin()+amount, m_stack.end());
 }
 
 

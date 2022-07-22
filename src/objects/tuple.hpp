@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../types/object.hpp"
 #include "../value.hpp"
 #include "../util/fmt.hpp"

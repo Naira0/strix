@@ -52,6 +52,11 @@ namespace fmt
     template<typename... A>
     std::string format(std::string_view fmt, A&&... a);
 
+    inline std::string to_string(const Object& object)
+    {
+        return object.to_string();
+    }
+
     inline std::string to_string(const Token& token)
     {
         return format("type({}) lexeme({}) position({}:{})",
