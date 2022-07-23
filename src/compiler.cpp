@@ -234,52 +234,46 @@ inline void Compiler::literal()
     }
 }
 
-void Compiler::identifier()
+void Compiler::fn_identifier(Identifier id)
 {
-    std::string_view identifier = m_previous_token.lexeme;
 
-    int scope_depth = resolve_var(identifier);
+#define GEN_NATIVE                                             \
+    auto native_fn = std::get<NativeFunction>(id);             \
+    emit_byte(OpCode::Constant, new NativeFunction(native_fn)) \
 
-    if(scope_depth == -1)
-        return error("use of unknown identifier");
-
-    Identifier id = m_identifiers[scope_depth][identifier];
-
-    if(id.index() == 2)
-    {
-        match(TokenType::LeftParen);
-        uint8_t arg_count = parse_fn_params();
-
-        auto native_fn = std::get<NativeFunction>(id);
-        emit_byte(OpCode::Constant, new NativeFunction(native_fn));
-
-        emit_byte(OpCode::Call, (double)arg_count);
-
-        return;
-    }
-
+    // used for called identifiers
     if(match(TokenType::LeftParen))
     {
-        uint16_t index = id_index(id);
-
         uint8_t arg_count = parse_fn_params();
 
-        emit_byte(OpCode::GetMem, index);
+        if(id.index() == 2)
+        {
+            GEN_NATIVE;
+        }
+        else
+        {
+            uint16_t index = id_index(id);
+            emit_byte(OpCode::GetMem, index);
+        }
 
         emit_byte(OpCode::Call, (double)arg_count);
-
-        return;
     }
-
-    if(id.index() == 1)
+    else if(id.index() == 1)
     {
-        FunctionData fn_data = std::get<FunctionData>(id);
-
+        auto fn_data = std::get<FunctionData>(id);
         emit_byte(OpCode::GetMem, fn_data.index);
-
-        return;
     }
+    else if(id.index() == 2)
+    {
+        GEN_NATIVE;
+    }
+    else
+        // im adding this because im 90% sure at some point this will help me solve a bug
+        error("a fucky wucky happened in fn_identifier");
+}
 
+void Compiler::var_identifier(Compiler::Identifier id)
+{
     auto var = std::get<Variable>(id);
 
     Token previous_token = m_previous_token;
@@ -320,6 +314,23 @@ void Compiler::identifier()
         emit_bytes(extra);
     if(get_mem)
         emit_byte(OpCode::GetMem, var.index);
+}
+
+void Compiler::identifier()
+{
+    std::string_view identifier = m_previous_token.lexeme;
+
+    int scope_depth = resolve_var(identifier);
+
+    if(scope_depth == -1)
+        return error("use of unknown identifier");
+
+    Identifier id = m_identifiers[scope_depth][identifier];
+
+    if(id.index() != 0 || check(TokenType::LeftParen))
+        fn_identifier(id);
+    else
+        var_identifier(id);
 }
 
 OpCode Compiler::mod_assignable(Variable var, bool &get_mem)
@@ -1097,6 +1108,10 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {nullptr,     nullptr,   Precedence::None}, // error
         {nullptr,     nullptr,   Precedence::None}, // eof
 };
+
+
+
+
 
 
 

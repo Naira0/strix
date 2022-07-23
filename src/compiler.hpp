@@ -151,6 +151,10 @@ private:
 
     void literal();
 
+    void fn_identifier(Identifier id);
+
+    void var_identifier(Identifier id);
+
     void identifier();
 
     OpCode mod_assignable(Variable var, bool &get_mem);
