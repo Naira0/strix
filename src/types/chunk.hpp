@@ -31,7 +31,6 @@
     e(Decrement)            \
     e(Or)                   \
     e(And)                  \
-    e(Print)                \
     e(LoadAddr)             \
     e(ConstructTuple)       \
     e(TypeCmp)              \

@@ -96,4 +96,22 @@ namespace builtin
 
         return InterpretResult::Ok;
     }
+
+    static InterpretResult print(VM &vm)
+    {
+        Value message = vm.pop();
+
+        mio::print(message.to_string());
+
+        return InterpretResult::Ok;
+    }
+
+    static InterpretResult println(VM &vm)
+    {
+        Value message = vm.pop();
+
+        mio::print(message.to_string() + '\n');
+
+        return InterpretResult::Ok;
+    }
 }

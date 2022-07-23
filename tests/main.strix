@@ -1,5 +1,5 @@
 
 
-var func = fn (x) { print x }
+var x = 10
 
-func()
+println(f"{x} yes {1+2}")

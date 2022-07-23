@@ -45,6 +45,8 @@ public:
 
         REGISTER("panic", 1, builtin::panic);
         REGISTER("input", 1, builtin::input);
+        REGISTER("print", 1, builtin::print);
+        REGISTER("println", 1, builtin::println);
 
 #undef  REGISTER
     }
@@ -158,8 +160,6 @@ private:
     void identifier();
 
     OpCode mod_assignable(Variable var, bool &get_mem);
-
-    void print_stmt();
 
     void begin_scope();
 

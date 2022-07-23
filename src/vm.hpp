@@ -8,7 +8,6 @@
 #include "types/chunk.hpp"
 #include "objects/function.hpp"
 
-
 #define DEBUG_TRACE false
 
 constexpr uint16_t MaxDataSize = sizeof(Value) * 1000;

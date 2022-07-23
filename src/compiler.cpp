@@ -268,7 +268,7 @@ void Compiler::fn_identifier(Identifier id)
         GEN_NATIVE;
     }
     else
-        // im adding this because im 90% sure at some point this will help me solve a bug
+        // im adding this because im 90% sure at some point this will help me catch a bug
         error("a fucky wucky happened in fn_identifier");
 }
 
@@ -394,9 +394,7 @@ void Compiler::statement()
 //    if(m_scope_depth == 0)
 //        return error("statements cannot be used at a global scope");
 
-    if(match(Print))
-        print_stmt();
-    else if(match(If))
+    if(match(If))
         if_stmt();
     else if(match(While))
         while_stmt();
@@ -935,12 +933,6 @@ void Compiler::synchronize()
     }
 }
 
-inline void Compiler::print_stmt()
-{
-    expression();
-    emit_bytes(OpCode::Print);
-}
-
 inline void Compiler::parse_precedence(Precedence precedence)
 {
     advance();
@@ -1094,7 +1086,6 @@ const Compiler::ParseRule Compiler::m_rules[] =
         {nullptr,     nullptr,   Precedence::None}, // for
         {&Compiler::if_expr,     nullptr,   Precedence::None}, // if
         {&Compiler::anon_fn,     nullptr,   Precedence::None}, // fn
-        {nullptr,     nullptr,   Precedence::None}, // print
         {nullptr,     nullptr,   Precedence::None}, // return
         {nullptr,     nullptr,   Precedence::None}, // super
         {nullptr,     nullptr,   Precedence::None}, // this

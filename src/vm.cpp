@@ -346,8 +346,6 @@ InterpretResult VM::run()
                 break;
             }
 
-            case Print: fmt::print("{}\n", pop()); break;
-
             case NoOp: break;
 
             case Return:

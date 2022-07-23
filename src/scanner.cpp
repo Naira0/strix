@@ -20,7 +20,6 @@ static const std::unordered_map<std::string_view, TokenType> g_keywords =
         {"do",       Do},
         {"nil",      Nil},
         {"or",       Or},
-        {"print",    Print},
         {"return",   Return},
         {"super",    Super},
         {"this",     This},

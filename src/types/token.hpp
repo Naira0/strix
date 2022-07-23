@@ -54,7 +54,6 @@
     e(For)                   \
     e(If)                    \
     e(Fn)                    \
-    e(Print)                 \
     e(Return)                \
     e(Super)                 \
     e(This)                  \
