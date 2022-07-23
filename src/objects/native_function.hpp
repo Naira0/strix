@@ -69,6 +69,8 @@ private:
     }
 };
 
+// TODO random numbers, file io, clock, exit, convert print statement to builtins
+
 namespace builtin
 {
     static InterpretResult panic /* ! AT THE DISCO */ (VM &vm)

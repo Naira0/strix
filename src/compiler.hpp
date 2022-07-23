@@ -199,7 +199,7 @@ private:
 
     void call();
 
-    uint8_t _call();
+    uint8_t parse_fn_params();
 
     bool check(TokenType type) const;
 

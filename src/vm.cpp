@@ -13,11 +13,6 @@
 #define BINARY_OP(op)               \
     do                              \
     {                               \
-          if(!same_operands()) \
-          {                   \
-                runtime_error("invalid operands provided to binary expression"); \
-                break;\
-          }                         \
           try                       \
           {                         \
               Value b = pop();  \
@@ -373,7 +368,7 @@ InterpretResult VM::run()
 
 InterpretResult VM::runtime_error(std::string_view message)
 {
-    CallFrame frame   = m_frames[--m_frame_cursor];
+    CallFrame frame   = m_frames[m_frame_cursor];
     Bytes instruction = frame.function.chunk.bytes[frame.pc];
 
     fmt::eprint("[runtime error on line {}] {}",

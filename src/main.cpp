@@ -12,8 +12,7 @@
  * TODO:
  * add bitwise operators
  * string escaping
- * anonymous functions
- * multiple return values is very slow investigate why
+ * clean up some of the compiler.cpp code ( stuff like identifier() )
  */
 
 void print_tokens(char *path)

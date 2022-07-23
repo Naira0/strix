@@ -1,5 +1,5 @@
 
 
-var answer = input("give me some data: ")
+var func = fn (x) { print x }
 
-print answer
+func()

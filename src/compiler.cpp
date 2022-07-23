@@ -245,11 +245,10 @@ void Compiler::identifier()
 
     Identifier id = m_identifiers[scope_depth][identifier];
 
-
     if(id.index() == 2)
     {
         match(TokenType::LeftParen);
-        uint8_t arg_count = _call();
+        uint8_t arg_count = parse_fn_params();
 
         auto native_fn = std::get<NativeFunction>(id);
         emit_byte(OpCode::Constant, new NativeFunction(native_fn));
@@ -263,7 +262,7 @@ void Compiler::identifier()
     {
         uint16_t index = id_index(id);
 
-        uint8_t arg_count = _call();
+        uint8_t arg_count = parse_fn_params();
 
         emit_byte(OpCode::GetMem, index);
 
@@ -361,8 +360,10 @@ void Compiler::end_scope()
     if(m_scope_depth == 0)
         return;
 
-    m_scope_depth--;
     m_data_index -= m_identifiers[m_scope_depth].size();
+
+    m_scope_depth--;
+
     m_identifiers.pop_back();
 }
 
@@ -768,13 +769,11 @@ void Compiler::var_declaration(bool consume_identifier = true, bool expect_value
     if(match(TokenType::LeftParen))
         return multiple_var_declaration(is_const);
 
-    uint16_t index = m_data_index++;
-
     Variable var
     {
         .depth      = m_scope_depth,
         .is_mutable = !is_const,
-        .index      = index,
+        .index      = m_data_index++,
     };
 
     if(consume_identifier)
@@ -794,7 +793,7 @@ void Compiler::var_declaration(bool consume_identifier = true, bool expect_value
         emit_bytes(OpCode::Nil);
     }
 
-    emit_byte(OpCode::SetMem, index);
+    emit_byte(OpCode::SetMem, var.index);
 
     set_identifier(var, var_name);
 
@@ -965,7 +964,7 @@ inline void Compiler::parse_precedence(Precedence precedence)
         error("invalid assignment");
 }
 
-uint8_t Compiler::_call()
+uint8_t Compiler::parse_fn_params()
 {
     uint8_t arg_count{};
 
@@ -992,7 +991,7 @@ uint8_t Compiler::_call()
 
 inline void Compiler::call()
 {
-    uint8_t arg_count = _call();
+    uint8_t arg_count = parse_fn_params();
     emit_byte(OpCode::Call, (double)arg_count);
 }
 
