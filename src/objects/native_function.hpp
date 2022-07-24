@@ -69,7 +69,7 @@ private:
     }
 };
 
-// TODO random numbers, file io, clock, exit, convert print statement to builtins
+// TODO random numbers, file io, clock, exit
 
 namespace builtin
 {

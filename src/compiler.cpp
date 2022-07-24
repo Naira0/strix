@@ -853,6 +853,18 @@ void Compiler::fn_declaration(bool anon_fn)
         } while(match(TokenType::Comma));
     }
 
+    m_scope_depth--;
+
+    FunctionData fn_data =
+            {
+                    .param_count = fn.param_count,
+                    .index = index,
+            };
+
+    set_identifier(fn_data, id);
+
+    m_scope_depth++;
+
     consume(TokenType::RightParen, "expected token matching ')' token");
 
     if(match(TokenType::Equal))
@@ -875,13 +887,7 @@ void Compiler::fn_declaration(bool anon_fn)
         return emit_byte(OpCode::Constant, new Function(std::move(fn)));
     }
 
-    FunctionData fn_data =
-    {
-        .param_count = fn.param_count,
-        .index = index,
-    };
 
-    set_identifier(fn_data, id);
 
     if(is_main)
         m_entry_fn = std::move(fn);

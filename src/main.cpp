@@ -12,7 +12,6 @@
  * TODO:
  * add bitwise operators
  * string escaping
- * clean up some of the compiler.cpp code ( stuff like identifier() )
  */
 
 void print_tokens(char *path)
@@ -92,7 +91,6 @@ void run_file(const char *path)
 
     InterpretResult result = vm.interpret(contents.value());
 }
-
 
 int main(int argc, char **argv)
 {

@@ -1,5 +1,12 @@
 
+fn reduce(n, target)
+{
+    if n == target
+        return n
+    return reduce(n-1, target)
+}
 
-var x = 10
+const x = reduce(10, 3)
 
-println(f"{x} yes {1+2}")
+print(x)
+

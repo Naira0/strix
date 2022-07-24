@@ -194,7 +194,6 @@ InterpretResult VM::run()
                 value.as.number++;
                 break;
             }
-            // TODO: implement in compiler
             case Decrement:
             {
                 Value &value = m_data[pop().as.address];
@@ -508,10 +507,10 @@ void VM::set_fn_params(uint8_t param_count, uint8_t arg_count)
             m_stack.emplace_back(nullptr);
     }
 
-    int8_t amount = arg_count-param_diff;
+    if(param_count <= 1)
+        return;
 
-    if(amount > 1)
-        std::reverse(m_stack.begin()+amount, m_stack.end());
+    std::reverse(m_stack.end()-param_count, m_stack.end());
 }
 
 
