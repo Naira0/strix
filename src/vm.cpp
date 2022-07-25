@@ -95,7 +95,7 @@ InterpretResult VM::run()
                 if(match(ValueType::Address))
                     BINARY_OP_MOD(+=);
                 else
-                    BINARY_OP(+); // fix this
+                    BINARY_OP(+);
                 break;
             }
             case Subtract:
@@ -304,8 +304,6 @@ InterpretResult VM::run()
             {
                 auto arg_count = CONSTANT.as.number;
 
-
-
                 frame->pc = pc;
 
                 call(arg_count);
@@ -471,12 +469,17 @@ void VM::set_from_tuple(uint16_t id_count)
 
     Value top = pop();
 
+    const auto nullify = [&](uint16_t start, uint8_t length)
+    {
+        for(uint8_t i = 0; i < length; i++)
+            m_data[start++] = nullptr;
+    };
+
     if(is_tuple(top))
     {
         m_data[start_index] = std::move(top);
 
-        for(uint8_t i = 0; i < id_count; i++)
-            m_data[++start_index] = Value(nullptr);
+        nullify(++start_index, id_count);
 
         return;
     }
@@ -484,17 +487,10 @@ void VM::set_from_tuple(uint16_t id_count)
     auto tuple = top.get<Tuple>();
 
     for(auto &item : tuple->data)
-    {
         m_data[start_index++] = std::move(item);
-    }
 
     if(id_count > tuple->length)
-    {
-        uint8_t diff = id_count-tuple->length;
-
-        for(uint8_t i = 0; i < diff; i++)
-            m_data[start_index++] = Value(nullptr);
-    }
+        nullify(start_index, id_count-tuple->length);
 }
 
 void VM::set_fn_params(uint8_t param_count, uint8_t arg_count)

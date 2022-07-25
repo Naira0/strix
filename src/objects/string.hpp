@@ -6,32 +6,24 @@ struct String : Object
 {
     // this is fairly safe as it will never attempt to mutate the data if it is set as static
     String(std::string_view sv) :
-            is_static(true),
-            data(const_cast<char*>(sv.data())),
-            length(sv.size())
+          data(sv)
     {
         intern_strings.emplace(sv, this);
     }
 
-    String(char *data, size_t length) :
-            is_static(false),
-            data(data),
-            length(length)
+    String(std::string &&string) :
+        data(std::forward<std::string>(string))
     {
         intern_strings.emplace(data, this);
     }
 
-    String(std::string &&str);
+    String(String &&string) noexcept :
+        data(std::move(string.data))
+    {}
 
-    ~String() override
-    {
-        if(!is_static)
-            delete[] data;
-    }
-
-    String(String &&string) noexcept;
-
-    String(const String &string);
+    String(const String &string) :
+        data(string.data)
+    {}
 
     Object* clone() override
     {
@@ -45,37 +37,22 @@ struct String : Object
 
     std::string to_string() const override
     {
-        if(!is_static)
-            return data;
-        return std::string{to_sv()};
+        return data;
     }
 
     bool compare(const Object *obj) override;
 
-
     Object* add(const Object *obj) override;
 
-
     Object* plus_equal(const Object *obj) override;
-
 
     ObjectType type() const override
     {
         return ObjectType::String;
     }
 
-    inline std::string_view to_sv() const
-    {
-        return {data, length};
-    }
-
-    char *data;
-    bool is_static;
-    size_t length;
+    std::string data;
 
     // this static map is used for string interning
     static std::unordered_map<std::string_view, Object*> intern_strings;
-
-private:
-    std::pair<char*, size_t> copy_tobuffer(const String *str) const;
 };

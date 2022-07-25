@@ -814,7 +814,6 @@ void Compiler::var_declaration(bool consume_identifier = true, bool expect_value
     }
 }
 
-// TODO recursion doesnt work because the function needs to be defined at the top but it needs to set it afterwards
 void Compiler::fn_declaration(bool anon_fn)
 {
     bool is_named = !anon_fn;
@@ -856,10 +855,10 @@ void Compiler::fn_declaration(bool anon_fn)
     m_scope_depth--;
 
     FunctionData fn_data =
-            {
-                    .param_count = fn.param_count,
-                    .index = index,
-            };
+    {
+        .param_count = fn.param_count,
+        .index = index,
+    };
 
     set_identifier(fn_data, id);
 
@@ -883,13 +882,8 @@ void Compiler::fn_declaration(bool anon_fn)
     m_function_stack.pop_back();
 
     if(!is_named)
-    {
         return emit_byte(OpCode::Constant, new Function(std::move(fn)));
-    }
-
-
-
-    if(is_main)
+    else if(is_main)
         m_entry_fn = std::move(fn);
     else
     {

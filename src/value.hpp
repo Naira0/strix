@@ -77,6 +77,13 @@ struct Value
         }
     }
 
+    template<typename T>
+    Value &operator=(T &&t)
+    {
+        *this = std::move(Value(t));
+        return *this;
+    }
+
     Value& operator=(Value &&value) noexcept
     {
         move_from(std::forward<Value>(value));
