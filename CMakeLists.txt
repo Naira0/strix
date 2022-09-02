@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.21)
 project(strix)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS_RELEASE "-O2 -Ot")
 
 add_executable(strix
         src/main.cpp

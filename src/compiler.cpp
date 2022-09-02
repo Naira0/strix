@@ -286,7 +286,7 @@ void Compiler::var_identifier(Compiler::Identifier id)
     // will determine if it the variable should be pushed on to the stack at the end of the function
     bool get_mem = true;
 
-    using enum class TokenType;
+    using enum TokenType;
 
     if(m_can_assign && match(Equal))
     {
@@ -335,7 +335,7 @@ void Compiler::identifier()
 
 OpCode Compiler::mod_assignable(Variable var, bool &get_mem)
 {
-    using enum class TokenType;
+    using enum TokenType;
 
     OpCode op = OpCode::NoOp;
 
@@ -388,7 +388,7 @@ void Compiler::block()
 
 void Compiler::statement()
 {
-    using enum class TokenType;
+    using enum TokenType;
 
     // disallows top level statements
 //    if(m_scope_depth == 0)

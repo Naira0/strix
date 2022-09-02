@@ -1,4 +1,6 @@
 #include "value.hpp"
+#include <exception>
+#include <complex>
 
 void Value::move_from(Value &&value)
 {
@@ -26,7 +28,7 @@ void Value::copy_from(const Value &value)
 bool operator==(const Value &a, const Value &b)
 {
     if(a.type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(a.type)
     {
@@ -41,7 +43,7 @@ bool operator==(const Value &a, const Value &b)
 Value operator+(const Value &a, const Value &b)
 {
     if(a.type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(a.type)
     {
@@ -71,7 +73,7 @@ std::string Value::to_string() const
 Value operator-(const Value &a, const Value &b)
 {
     if(a.type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(a.type)
     {
@@ -86,7 +88,7 @@ Value operator-(const Value &a, const Value &b)
 Value &operator+=(Value &a, const Value &b)
 {
     if(a.type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(a.type)
     {
@@ -101,7 +103,7 @@ Value &operator+=(Value &a, const Value &b)
 Value operator/(const Value &a, const Value &b)
 {
     if(a.type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(a.type)
     {
@@ -113,7 +115,7 @@ Value operator/(const Value &a, const Value &b)
 Value operator*(const Value &a, const Value &b)
 {
     if(a.type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(a.type)
     {
@@ -125,7 +127,7 @@ Value operator*(const Value &a, const Value &b)
 bool operator>(const Value &a, const Value &b)
 {
     if(a.type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(a.type)
     {
@@ -139,7 +141,7 @@ bool operator>(const Value &a, const Value &b)
 bool operator<(const Value &a, const Value &b)
 {
     if(a.type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(a.type)
     {
@@ -153,7 +155,7 @@ bool operator<(const Value &a, const Value &b)
 Value &operator-=(Value &a, const Value &b)
 {
     if(a.type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(a.type)
     {
@@ -167,7 +169,7 @@ Value &operator-=(Value &a, const Value &b)
 Value &operator*=(Value &a, const Value &b)
 {
     if(a.type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(a.type)
     {
@@ -181,7 +183,7 @@ Value &operator*=(Value &a, const Value &b)
 Value &operator/=(Value &a, const Value &b)
 {
     if(a.type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(a.type)
     {
@@ -195,7 +197,7 @@ Value &operator/=(Value &a, const Value &b)
 bool operator<=(const Value &a, const Value &b)
 {
     if(a.type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(a.type)
     {
@@ -208,7 +210,7 @@ bool operator<=(const Value &a, const Value &b)
 bool operator>=(const Value &a, const Value &b)
 {
     if(a.type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(a.type)
     {
@@ -221,7 +223,7 @@ bool operator>=(const Value &a, const Value &b)
 Value Value::power(const Value &b) const
 {
     if(type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(type)
     {
@@ -233,7 +235,7 @@ Value Value::power(const Value &b) const
 Value Value::mod(const Value &b) const
 {
     if(type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(type)
     {
@@ -258,7 +260,7 @@ bool Value::type_cmp(const Value &b) const
 bool operator!=(const Value &a, const Value &b)
 {
     if(a.type != b.type)
-        throw std::exception("invalid operands to binary expression");
+        throw std::runtime_error("invalid operands to binary expression");
 
     switch(a.type)
     {

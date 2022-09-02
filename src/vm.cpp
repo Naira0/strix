@@ -1,5 +1,7 @@
 
 #include <iostream>
+#include <cmath>
+#include <algorithm>
 
 #include "vm.hpp"
 #include "types/chunk.hpp"

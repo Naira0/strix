@@ -25,7 +25,7 @@ void print_tokens(char *path)
 
     Token token;
 
-    using enum class TokenType;
+    using enum TokenType;
 
     while((token = scanner.scan_token()).type != Eof)
     {
